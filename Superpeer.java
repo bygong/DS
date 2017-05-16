@@ -30,15 +30,41 @@ class Superpeer{
 	}
 	
 	public Address routeTo(String stockName){
-		Address result;
+		Address address;
+		if ((address = routeInner(stockName)) != null){
+			return address;
+		}
+		else{
+			address = routeOuter(stockName);
+			return address;
+		}
+	}
+	
+	public Address routeOuter(String stockName){
+		Address result;	
 		for (String peer : superPeers.keySet()){
 			if (peer == exchangeDelegate.address.name)
 				continue;
 			if ((result = client.sendRoute(superPeers.get(peer),stockName)) != null)
 				return result;	
 		}
+		
 		return null;
 		
+	}
+	
+	public Address routeInner(String stockName){
+		Address result;
+		if (exchangeDelegate.stockShelf.containsKey(stockName))
+			return exchangeDelegate.address;
+		
+		for (String peer : innerExchanges.keySet()){
+			if (peer == exchangeDelegate.address.name)
+				continue;
+			if ((result = client.sendRoute(innerExchanges.get(peer),stockName)) != null)
+				return result;	
+		}
+		return null;
 	}
 	
 	void RegisterExchange(String newExchange){

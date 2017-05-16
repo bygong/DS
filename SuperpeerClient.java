@@ -19,8 +19,23 @@ public class SuperpeerClient {
 //		return true;
 //	}
 	
+//------------------------initiative service---------------------------
 	Address sendRoute(Address dest, String stockName){
-		return null;
+		try (Channel channel = new Channel(dest);){
+			channel.output.println("Find|"+stockName);
+			channel.socket.setSoTimeout(5000);
+			String response = channel.input.readLine();
+			String[] contents = response.split("|");
+			if (contents[1].equals("Success")){
+				Address ret = new Address(contents[2], contents[3], contents[4], Integer.parseInt(contents[5]));
+				return ret;
+			}
+			else{
+				return null;
+			}
+		}catch (Exception e) {
+			return null;
+		}
 	}
 	
 	//register new exchange coming in, notify "dest" exchange
@@ -41,6 +56,24 @@ public class SuperpeerClient {
 		}
 		
 	}
+//	---------------------------passive service----------------------------------------------
+	void sendFindSuccess(Socket s, Address address){
+		try (PrintWriter out = new PrintWriter(s.getOutputStream());){
+			out.println("RemoteFind|Success" + address.continent+"|"+address.name+"|"+address.IP+"|"+address.port);
+		}catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+	void sendFindFailure(Socket s, Address address){
+		try (PrintWriter out = new PrintWriter(s.getOutputStream());){
+			out.println("RemoteFind|Failure");
+		}catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+
 	
 	Socket connectTo (Address dest) throws Exception {
 		Socket socket;

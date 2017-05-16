@@ -72,6 +72,27 @@ public class ExchangeClient {
 		}
 	}
 	
+	Address sendRoute(Address superPeerAddress, String stockName){
+		try (Channel channel = new Channel(superPeerAddress);){
+			channel.output.println("Find|"+stockName);
+			channel.socket.setSoTimeout(5000);
+			String response = channel.input.readLine();
+			String[] contents = response.split("|");
+			if (contents[1].equals("Success"))
+			{
+				Address ret = new Address(contents[2], contents[3], contents[4], Integer.parseInt(contents[5]));
+				return ret;
+			}
+			else{
+				return null;
+			}
+		}catch (Exception e) {
+			System.out.println("sending route error");
+			return null;
+		}
+		
+	}
+	
 	//------------------passive service-------------------------
 	void sendBuySuccess(Socket s, String userName){
 		try (PrintWriter out = new PrintWriter(s.getOutputStream());){
@@ -107,7 +128,7 @@ public class ExchangeClient {
 	
 	void sendExchangeBuySuccess(Socket s, String exchangeName){
 		try (PrintWriter out = new PrintWriter(s.getOutputStream());){
-			out.println("ExchangeBuy|Success");
+			out.println("ExchangeBuyResponse|Success");
 		}catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -115,7 +136,7 @@ public class ExchangeClient {
 	
 	void sendExchangeBuyFailure(Socket s, String exchangeName, String reason){
 		try (PrintWriter out = new PrintWriter(s.getOutputStream());){
-			out.println("ExchangeBuy|Failure|"+reason);
+			out.println("ExchangeBuyResponse|Failure|"+reason);
 		}catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -123,7 +144,7 @@ public class ExchangeClient {
 	
 	void sendExchangeSellSuccess(Socket s, String exchangeName){
 		try (PrintWriter out = new PrintWriter(s.getOutputStream());){
-			out.println("ExchangeSell|Success");
+			out.println("ExchangeSellResponse|Success");
 		}catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -131,7 +152,7 @@ public class ExchangeClient {
 	
 	void sendExchangeSellFailure(Socket s, String exchangeName, String reason){
 		try (PrintWriter out = new PrintWriter(s.getOutputStream());){
-			out.println("ExchangeSell|Failure|"+reason);
+			out.println("ExchangeSellResponse|Failure|"+reason);
 		}catch (Exception e) {
 			e.printStackTrace();
 		}

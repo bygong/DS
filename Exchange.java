@@ -163,7 +163,14 @@ public class Exchange{
 //	}
 	
 	Address routing(String stockName){
-		return null;
+		Address dest;
+		if (superpeer!=null){
+			dest = superpeer.routeTo(stockName);
+		}
+		else{
+			dest = client.sendRoute(superPeerAddress,stockName);
+		}
+		return dest;
 	};
 
 	boolean BuySell(){

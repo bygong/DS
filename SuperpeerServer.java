@@ -30,11 +30,13 @@ public class SuperpeerServer extends Thread{
 class SuperpeerService extends Thread{
 	SuperpeerClient client;
 	SuperpeerServer server;
+	Superpeer superpeer;
 	Socket socket;
 	public SuperpeerService(Socket socket, SuperpeerClient client, SuperpeerServer server) {
 		this.socket = socket;
 		this.client = client;
 		this.server = server;
+		this.superpeer = server.superpeer;
 	}
 	
 	@Override
@@ -45,24 +47,44 @@ class SuperpeerService extends Thread{
 				BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 				){
 			//extract type information
-			command = in.readLine();
-			//extract target tag
-			destExchange = in.readLine();
-			//extract source tag
-			sourceExchange = in.readLine();
-
+			String inputString = in.readLine();
+			String[] commands = inputString.split("|");
+			command = commands[0];
+	
 			//if type is ack
 			switch (command) {
-			case "Buy":
-				
-				break;
-
-			default:
-				break;
+				case "Find":
+					findHandler(commands[1]);
+					break;
+				case "RemoteFind":
+					remoteFindHandler(commands[1]);
+					break;
+				default:
+					break;
 			}
+			
 		}catch (IOException e) {
 			System.out.println("Reading socket error"+e.toString());
 		}
 	}
 	
+	void findHandler(String stockName){
+		Address address = superpeer.routeTo(stockName);
+		if (address != null){
+			client.sendFindSuccess(socket,address);
+		}
+		else {
+			client.sendFindFailure(socket,address);
+		}
+	}
+	
+	void remoteFindHandler(String stockName){
+		Address address = superpeer.routeInner(stockName);
+		if (address != null){
+			client.sendFindSuccess(socket,address);
+		}
+		else {
+			client.sendFindFailure(socket,address);
+		}
+	}
 }
