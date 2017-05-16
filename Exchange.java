@@ -2,9 +2,12 @@ import java.awt.List;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.channels.*;
+import java.sql.SQLNonTransientConnectionException;
 import java.sql.Time;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import org.jgroups.JChannel;
 
@@ -14,15 +17,20 @@ public class Exchange{
 	static ExchangeClient client;
 	static ExchangeServer server;
 	static Superpeer superpeer;
-	static boolean clientInitiated = false, registered = false;
+	static boolean clientInitiated = false, registered = false, systemInitiated = false;
+	static Integer exchangeTime = 0;
+	static Timer timer;
+	ExchangeTimer timerTask = new ExchangeTimer();
+	
+	public static final int timeout = 5000, timeInterval = 1000;
 	
 	static Address housekeeperAddress = new Address("Housekeeper", null, "localhost", 10000);
 	static Address superPeerAddress;
 	
 	//address cache pool
 	protected static HashMap<String, Address> addressPool = new HashMap<String, Address>();
-	protected static HashMap<Stock, Address> stockMapCache;
 	protected static HashMap<String, Integer> stockShelf;
+	protected static HashMap<String, DNSEntry> dnsTable = new HashMap<>();
 	protected static HashMap<String, Address> burnedInExchangeAddresses = new HashMap<String, Address>(){
 		{
 			put("New York Stock Exchange", new Address("New York Stock Exchange","America","localhost",10001));
@@ -75,7 +83,19 @@ public class Exchange{
 		}
 	};
 	
-	protected static HashMap<String, Address> dnsTable = new HashMap<>();
+	
+	class ExchangeTimer extends TimerTask{
+		@Override
+		public void run() {
+			for (String entry : dnsTable.keySet()){
+				if ((dnsTable.get(entry).TTL--) == 0)
+					dnsTable.remove(entry);
+			}
+			exchangeTime++;
+		}
+	}
+	
+	
 	
 	public static void main(String[] args) {
 		//------------------validate input---------------
@@ -117,28 +137,15 @@ public class Exchange{
 			server.clientDelegate = client;
 			client.serverDelegate = server;
 			
+			
 			while(!registered)
 			{
 				client.sendRegister();
 			}
+
 			server.start();
 			
-			//listen to user message persistently 
-//			while(true){
-//				System.out.println("Send message to which peer?");
-//				try{
-//					//read target peer's tag
-//					String targetPeer = userIn.readLine();
-//					//read message
-//					String message = userIn.readLine();
-//					
-//					//send the message
-//					if(clientInitiated = true)
-//						c.sendMessage(targetPeer,address.name, message);
-//				}catch(NumberFormatException e){
-//					System.out.println("Please input corerct peer number!");
-//				}
-//			}
+
 		}catch (Exception e) {
 			System.out.println(e.toString());
 		}
@@ -148,7 +155,6 @@ public class Exchange{
 		return stockShelf.containsKey(stockName);
 	}
 	
-	//routing function, returns an address/null
 	
 	
 	//add a dns entry to my pool
@@ -156,11 +162,6 @@ public class Exchange{
 		addressPool.put(s, a);
 	}
 	
-	//invalidate a dns entry in my pool
-//	public void invalidate(String s){
-//		addressPool.remove(s);
-//		c.sendInvalidate(s, master.name, address.name);
-//	}
 	
 	Address routing(String stockName){
 		Address dest;
@@ -170,8 +171,23 @@ public class Exchange{
 		else{
 			dest = client.sendRoute(superPeerAddress,stockName);
 		}
+		if (dest != null){
+			addDNSEntry(stockName, dest);
+		}
 		return dest;
 	};
+	
+	void addDNSEntry(String stockName, Address address){
+		synchronized (dnsTable) {
+			dnsTable.put(stockName, new DNSEntry(address));
+		}
+	}
+	
+	void removeDNSEntry(String stockName){
+		synchronized (dnsTable) {
+			dnsTable.put(stockName, new DNSEntry(address));
+		}
+	}
 
 	boolean BuySell(){
 		return false;
@@ -242,5 +258,13 @@ class Address{
 		this.continent = continent;
 		this.IP = IP;
 		this.port = port;
+	}
+}
+
+class DNSEntry{
+	Address address;
+	int TTL = 30;
+	public DNSEntry(Address address) {
+		this.address = address; 
 	}
 }

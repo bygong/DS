@@ -4,6 +4,8 @@ import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;
 
+import Exchange.ExchangeTimer;
+
 public class ExchangeServer extends Thread{
 	
 	Exchange exchange;
@@ -69,6 +71,10 @@ class Service extends Thread{
 				break;
 			case "Find":
 				findStockHandler(commands[1]);
+				break;
+			case "TimeSync":
+				timeSyncHandler(Integer.parseInt(commands[1]));
+				break;
 			default:
 				break;
 			}
@@ -169,4 +175,13 @@ class Service extends Thread{
 		}
 	}
 	
+	void timeSyncHandler(int timeStamp){
+		synchronized (exchange.exchangeTime) {
+			exchange.exchangeTime = timeStamp;
+		}
+		if (!exchange.systemInitiated){
+			exchange.systemInitiated = true;
+			exchange.timer.scheduleAtFixedRate(exchange.timerTask, 0, Exchange.timeInterval);
+		}
+	}
 }
