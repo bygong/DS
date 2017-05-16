@@ -67,6 +67,8 @@ class Service extends Thread{
 			case "ExchangeBuy":
 				exchangeBuyhandler(commands[1],commands[2],Integer.parseInt(commands[3]));
 				break;
+			case "Find":
+				findStockHandler(commands[1]);
 			default:
 				break;
 			}
@@ -157,6 +159,14 @@ class Service extends Thread{
 		}
 		else
 				client.sendExchangeSellFailure(socket,exchangeName,"Stock not found");
+	}
+	
+	void findStockHandler(String stockName){
+		if (exchange.stockShelf.containsKey(stockName)){
+			client.sendFindSuccess(socket,stockName);
+		}else{
+			client.sendFindFailure(socket,stockName);
+		}
 	}
 	
 }

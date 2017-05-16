@@ -158,6 +158,21 @@ public class ExchangeClient {
 		}
 	}
 	
+	void sendFindSuccess(Socket s, String stockName){
+		try (PrintWriter out = new PrintWriter(s.getOutputStream());){
+			out.println("Find|Success");
+		}catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+	void sendFindFailure(Socket s, String stockName){
+		try (PrintWriter out = new PrintWriter(s.getOutputStream());){
+			out.println("Find|Failure");
+		}catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
 	
 	
 	Socket connectTo(Address dest){

@@ -27,8 +27,7 @@ public class SuperpeerClient {
 			String response = channel.input.readLine();
 			String[] contents = response.split("|");
 			if (contents[1].equals("Success")){
-				Address ret = new Address(contents[2], contents[3], contents[4], Integer.parseInt(contents[5]));
-				return ret;
+				return dest;
 			}
 			else{
 				return null;
@@ -59,7 +58,7 @@ public class SuperpeerClient {
 //	---------------------------passive service----------------------------------------------
 	void sendFindSuccess(Socket s, Address address){
 		try (PrintWriter out = new PrintWriter(s.getOutputStream());){
-			out.println("RemoteFind|Success" + address.continent+"|"+address.name+"|"+address.IP+"|"+address.port);
+			out.println("Find|Success" + address.continent+"|"+address.name+"|"+address.IP+"|"+address.port);
 		}catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -67,7 +66,7 @@ public class SuperpeerClient {
 	
 	void sendFindFailure(Socket s, Address address){
 		try (PrintWriter out = new PrintWriter(s.getOutputStream());){
-			out.println("RemoteFind|Failure");
+			out.println("Find|Failure");
 		}catch (Exception e) {
 			e.printStackTrace();
 		}
