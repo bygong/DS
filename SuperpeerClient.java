@@ -4,9 +4,12 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 
+import org.omg.CORBA.TIMEOUT;
+
 public class SuperpeerClient {
 	Superpeer superpeer;
 	SuperpeerServer serverDelegate;
+	static final int TIMEOUT = 5000;
 	
 	public SuperpeerClient(Superpeer superpeer) {
 		this.superpeer = superpeer;
@@ -23,7 +26,7 @@ public class SuperpeerClient {
 	Address sendRoute(Address dest, String stockName){
 		try (Channel channel = new Channel(dest);){
 			channel.output.println("Find|"+stockName);
-			channel.socket.setSoTimeout(5000);
+			channel.socket.setSoTimeout(TIMEOUT);
 			String response = channel.input.readLine();
 			String[] contents = response.split("|");
 			if (contents[1].equals("Success")){
@@ -38,8 +41,14 @@ public class SuperpeerClient {
 	}
 	
 	//register new exchange coming in, notify "dest" exchange
-	void sendNewExchange(Address dest, String newExchange){
-		
+	void sendNewExchange(Address dest, Address newExchange){
+		try(Channel channel = new Channel(dest);){
+			String message = "ExchangeRegistration|" + newExchange.name + "|" + newExchange.IP + "|" + newExchange.port;
+			channel.socket.setSoTimeout(TIMEOUT);
+			channel.output.println(message);
+		}catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 	
 	void sendSuperpeerRegistration(){
@@ -47,8 +56,17 @@ public class SuperpeerClient {
 				Channel channel = new Channel(superpeer.houseKeeperAddress);
 				){
 			String message = "SuperpeerRegistration|" + superpeer.houseKeeperAddress.name + "|" + superpeer.address.name;
+			channel.socket.setSoTimeout(TIMEOUT);
 			channel.output.println(message);
 			String response = channel.input.readLine();
+			String[] contents = response.split("|");
+			
+			while((response = channel.input.readLine()) != null){
+				contents = response.split("|");
+				Address superPeer = new Address(contents[0], contents[1], contents[2], Integer.parseInt(contents[3]));
+				superpeer.superPeers.put(superPeer.continent, superPeer);
+			}
+			
 		} catch (Exception e) {
 			System.out.println("Superpeer " + superpeer.address.name + " registration error.");
 			return;

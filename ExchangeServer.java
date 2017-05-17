@@ -61,7 +61,6 @@ class Service extends Thread{
 			command = commands[0];
 			
 
-			//if type is ack
 			switch (command) {
 			case "Buy":
 				buyHandler(commands[1],commands[2],Integer.parseInt(commands[3]));
@@ -75,6 +74,8 @@ class Service extends Thread{
 			case "TimeSync":
 				timeSyncHandler(Integer.parseInt(commands[1]));
 				break;
+			case "ExchangeRegistration":
+				newExchangeHandler(commands[1],commands[2],Integer.parseInt(commands[3]));
 			default:
 				break;
 			}
@@ -183,5 +184,10 @@ class Service extends Thread{
 			exchange.systemInitiated = true;
 			exchange.timer.scheduleAtFixedRate(exchange.timerTask, 0, Exchange.timeInterval);
 		}
+	}
+	
+	void newExchangeHandler(String name, String IP, int port){
+		Address newExchange = new Address(name, exchange.address.continent, IP, port);
+		exchange.addAddress(name, newExchange);
 	}
 }

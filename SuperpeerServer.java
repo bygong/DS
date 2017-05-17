@@ -59,6 +59,9 @@ class SuperpeerService extends Thread{
 				case "RemoteFind":
 					remoteFindHandler(commands[1]);
 					break;
+				case "ExchangeRegistration":
+					exchangeRegistrationHandler(commands[1],commands[2],Integer.parseInt(commands[3]));
+					break;
 				default:
 					break;
 			}
@@ -86,5 +89,10 @@ class SuperpeerService extends Thread{
 		else {
 			client.sendFindFailure(socket,address);
 		}
+	}
+	
+	void exchangeRegistrationHandler(String name, String IP, int port){
+		Address newExchange = new Address(name, superpeer.address.continent, IP, port);
+		superpeer.RegisterExchange(newExchange);
 	}
 }

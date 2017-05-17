@@ -8,6 +8,7 @@ public class ExchangeClient {
 	
 	Exchange exchange;
 	ExchangeServer serverDelegate;
+	static final int TIMEOUT = 5000;
 	
 	//-------------------initiative service---------------------
 	public ExchangeClient(Exchange exchange) {
@@ -15,10 +16,27 @@ public class ExchangeClient {
 	}
 	
 	boolean sendRegister(){
-		if (connectTo(exchange.housekeeperAddress) == null){
+		try (Channel channel = new Channel(exchange.superPeerAddress);){
+			channel.output.println("ExchangeRegistration|"+"|"+exchange.address.name +"|" + exchange.address.IP + "|" + exchange.address.port);
+			channel.socket.setSoTimeout(5000);
+			String response = channel.input.readLine();
+			String[] contents = response.split("|");
+			if (contents[0].equals("ExchangeRegistrationResponse"))
+			{
+				while((response = channel.input.readLine()) != null){
+					contents = response.split("|");
+					Address otherExchange = new Address(contents[2], contents[3], contents[4], Integer.parseInt(contents[5]));
+					exchange.addAddress(otherExchange.name, otherExchange);
+				}
+				return true;
+			}
+			else{
+				return false;
+			}
+		}catch (Exception e) {
+			System.out.println("register error");
 			return false;
 		}
-		return true;
 	}
 	
 	//returns a status code

@@ -122,6 +122,8 @@ public class Exchange{
 	public Exchange(boolean isSuper) {
 		if (isSuper)
 			becomeSuperpeer();
+		superpeer.innerExchanges.put(address.name, address);
+		registered = true;
 	}
 	
 	public void start(){
@@ -140,7 +142,7 @@ public class Exchange{
 			
 			while(!registered)
 			{
-				client.sendRegister();
+				registered = client.sendRegister();
 			}
 
 			server.start();
@@ -165,6 +167,9 @@ public class Exchange{
 	
 	Address routing(String stockName){
 		Address dest;
+		
+		if (dnsTable.containsKey(stockName))
+			return dnsTable.get(stockName).address;
 		if (superpeer!=null){
 			dest = superpeer.routeTo(stockName);
 		}

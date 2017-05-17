@@ -67,10 +67,15 @@ class Superpeer{
 		return null;
 	}
 	
-	void RegisterExchange(String newExchange){
+	void RegisterExchange(Address newExchange){
 		for (String ex : innerExchanges.keySet()){
 			client.sendNewExchange(innerExchanges.get(ex), newExchange);
 		}
+		addInnerExchange(newExchange.name, newExchange);
+	}
+	
+	void addInnerExchange(String name, Address address){
+		innerExchanges.put(name, address);
 	}
 	
 	void updateInfo(){
