@@ -17,14 +17,14 @@ public class ExchangeClient {
 	
 	boolean sendRegister(){
 		try (Channel channel = new Channel(exchange.superPeerAddress);){
-			channel.output.println("ExchangeRegistration|"+"|"+exchange.address.name +"|" + exchange.address.IP + "|" + exchange.address.port);
+			channel.output.println("ExchangeRegistration|"+exchange.address.name +"|" + exchange.address.IP + "|" + exchange.address.port);
 			channel.socket.setSoTimeout(5000);
 			String response = channel.input.readLine();
-			String[] contents = response.split("|");
+			String[] contents = response.split("\\|");
 			if (contents[0].equals("ExchangeRegistrationResponse"))
 			{
 				while((response = channel.input.readLine()) != null){
-					contents = response.split("|");
+					contents = response.split("\\|");
 					Address otherExchange = new Address(contents[2], contents[3], contents[4], Integer.parseInt(contents[5]));
 					exchange.addAddress(otherExchange.name, otherExchange);
 				}
@@ -39,54 +39,69 @@ public class ExchangeClient {
 		}
 	}
 	
-	//returns a status code
-	//0: success, 1: no inventory, 2: remote exchange not online, 3: stock not exist
-	int sendRemoteBuy(Address dest, String stockName, int shares){
-		try (Channel channel = new Channel(dest);){
-			channel.output.println("ExchangeBuy|"+exchange.address.name+"|"+stockName+"|"+shares);
+	boolean sendHousekeeperRegister(){
+		try (Channel channel = new Channel(exchange.housekeeperAddress);){
+			channel.output.println("ExchangeRegistration|"+exchange.address.name +"|" +exchange.address.continent + "|" + exchange.address.IP + "|" + exchange.address.port);
 			channel.socket.setSoTimeout(5000);
 			String response = channel.input.readLine();
-			String[] contents = response.split("|");
-			if (contents[0].equals("ExchangeBuySucceess"))
-				return 0;
-			else if(contents[2].equals("No inventory"))
-				return 1;
-			else {
-				return 3;
+			String[] contents = response.split("\\|");
+			if (contents[0].equals("ExchangeRegistrationResponse"))
+			{
+				String superpeerName = contents[1], superpeerIP = contents[2];
+				int superpeerPort = Integer.parseInt(contents[3]);
+				exchange.superPeerAddress = new Address(superpeerName, exchange.address.continent, superpeerIP, superpeerPort);
+				return true;
 			}
-			
-		}catch (SocketTimeoutException e) {
-			System.out.println("Connection timeout");
-			return 2;
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			System.out.println("Sending order error!");
-			return 2;
+			else{
+				return false;
+			}
+		}catch (Exception e) {
+			System.out.println("register error");
+			return false;
 		}
 	}
 	
 	//returns a status code
 	//0: success, 1: no inventory, 2: remote exchange not online, 3: stock not exist
-	int sendRemoteSell(Address dest, String stockName, int shares){
+	double sendRemoteBuy(Address dest, String stockName, int shares){
+		try (Channel channel = new Channel(dest);){
+			channel.output.println("ExchangeBuy|"+exchange.address.name+"|"+stockName+"|"+shares);
+			channel.socket.setSoTimeout(5000);
+			String response = channel.input.readLine();
+			String[] contents = response.split("\\|");
+			if (contents[1].equals("Succeess"))
+			{
+				double price = Double.parseDouble(contents[2]);
+				return price;
+			}
+			else
+				return -1;
+			
+		}catch (Exception e) {
+			e.printStackTrace();
+			System.out.println("Sending order error!");
+			return -1;
+		}
+	}
+	
+	//returns a status code
+	//0: success, 1: no inventory, 2: remote exchange not online, 3: stock not exist
+	double sendRemoteSell(Address dest, String stockName, int shares){
 		try (Channel channel = new Channel(dest);){
 			channel.output.println("ExchangeSell|"+exchange.address.name+"|"+stockName+"|"+shares);
 			channel.socket.setSoTimeout(5000);
 			String response = channel.input.readLine();
-			String[] contents = response.split("|");
-			if (contents[0].equals("ExchangeSellSucceess"))
-				return 0;
-			else
-				return 3;
-		}
-		catch (SocketTimeoutException e) {
-			System.out.println("Connection timeout");
-			return 2;
-		}
-		catch (Exception e) {
+			String[] contents = response.split("\\|");
+			if (contents[1].equals("Succeess"))
+			{
+				double price = Double.parseDouble(contents[2]);
+				return price;
+			}else
+				return -1;
+		}catch (Exception e) {
 			e.printStackTrace();
 			System.out.println("Sending order error!");
-			return 2;
+			return -1;
 		}
 	}
 	
@@ -95,7 +110,7 @@ public class ExchangeClient {
 			channel.output.println("Find|"+stockName);
 			channel.socket.setSoTimeout(5000);
 			String response = channel.input.readLine();
-			String[] contents = response.split("|");
+			String[] contents = response.split("\\|");
 			if (contents[1].equals("Success"))
 			{
 				Address ret = new Address(contents[2], contents[3], contents[4], Integer.parseInt(contents[5]));
@@ -112,15 +127,15 @@ public class ExchangeClient {
 	}
 	
 	//------------------passive service-------------------------
-	void sendBuySuccess(Socket s, String userName){
+	void sendBuySuccess(Socket s, String userName, String stockName, double price){
 		try (PrintWriter out = new PrintWriter(s.getOutputStream());){
-			out.println("BuyResponse|Success");
+			out.println("BuyResponse|Success|"+price);
 		}catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
 	
-	void sendBuyFailure(Socket s, String userName, String reason){
+	void sendBuyFailure(Socket s, String userName, String stockName, String reason){
 		try (PrintWriter out = new PrintWriter(s.getOutputStream());){
 			out.println("BuyResponse|Failure|"+reason);
 		}catch (Exception e) {
@@ -128,31 +143,31 @@ public class ExchangeClient {
 		}
 	}
 	
-	void sendSellSuccess(Socket s, String userName){
+	void sendSellSuccess(Socket s, String stockName, String userName, double price){
 		try (PrintWriter out = new PrintWriter(s.getOutputStream());){
-			out.println("SellResponse|Success");
+			out.println("SellResponse|Success|"+price);
 		}catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
 	
-	void sendSellFailure(Socket s, String userName, String reason){
+	void sendSellFailure(Socket s, String userName, String stockName, String reason){
 		try (PrintWriter out = new PrintWriter(s.getOutputStream());){
-			out.println("SellResponse|Success|"+reason);
+			out.println("SellResponse|Failure|"+reason);
 		}catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
 	
-	void sendExchangeBuySuccess(Socket s, String exchangeName){
+	void sendExchangeBuySuccess(Socket s, String exchangeName, String stockName, double price){
 		try (PrintWriter out = new PrintWriter(s.getOutputStream());){
-			out.println("ExchangeBuyResponse|Success");
+			out.println("ExchangeBuyResponse|Success|"+price);
 		}catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
 	
-	void sendExchangeBuyFailure(Socket s, String exchangeName, String reason){
+	void sendExchangeBuyFailure(Socket s, String exchangeName, String stockName, String reason){
 		try (PrintWriter out = new PrintWriter(s.getOutputStream());){
 			out.println("ExchangeBuyResponse|Failure|"+reason);
 		}catch (Exception e) {
@@ -160,15 +175,15 @@ public class ExchangeClient {
 		}
 	}
 	
-	void sendExchangeSellSuccess(Socket s, String exchangeName){
+	void sendExchangeSellSuccess(Socket s, String exchangeName, String stockName, double price){
 		try (PrintWriter out = new PrintWriter(s.getOutputStream());){
-			out.println("ExchangeSellResponse|Success");
+			out.println("ExchangeSellResponse|Success|"+price);
 		}catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
 	
-	void sendExchangeSellFailure(Socket s, String exchangeName, String reason){
+	void sendExchangeSellFailure(Socket s, String exchangeName, String stockName, String reason){
 		try (PrintWriter out = new PrintWriter(s.getOutputStream());){
 			out.println("ExchangeSellResponse|Failure|"+reason);
 		}catch (Exception e) {

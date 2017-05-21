@@ -4,7 +4,6 @@ import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;
 
-import Exchange.ExchangeTimer;
 
 public class ExchangeServer extends Thread{
 	
@@ -49,24 +48,24 @@ class Service extends Thread{
 		try(
 				BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 				){
-			//extract type information
-//			command = in.readLine();
-//			//extract target tag
-//			destExchange = in.readLine();
-//			//extract source tag
-//			sourceExchange = in.readLine();
 			
 			String inputString = in.readLine();
-			String[] commands = inputString.split("|");
+			String[] commands = inputString.split("\\|");
 			command = commands[0];
 			
 
 			switch (command) {
-			case "Buy":
+			case "BUY":
 				buyHandler(commands[1],commands[2],Integer.parseInt(commands[3]));
+				break;
+			case "SELL":
+				sellHandler(commands[1],commands[2],Integer.parseInt(commands[3]));
 				break;
 			case "ExchangeBuy":
 				exchangeBuyhandler(commands[1],commands[2],Integer.parseInt(commands[3]));
+				break;
+			case "ExchangeSell":
+				exchangeSellhandler(commands[1], commands[2], Integer.parseInt(commands[3]));
 				break;
 			case "Find":
 				findStockHandler(commands[1]);
@@ -86,31 +85,38 @@ class Service extends Thread{
 	
 	//handle user buy request
 	void buyHandler(String userName, String stockName, int shares){
+		if (exchange.mutualFundList.containsKey(stockName)){
+			double price = exchange.buyMutualFund(stockName, shares);
+			if (price >= 0)
+			{
+				client.sendBuySuccess(socket,userName,stockName,price);
+				return;
+			}
+		}
+		int id = exchange.my_db.QueryStockID((stockName));
+		double price;
 		//if stock belongs to this exchange
-		if (exchange.hasStock(stockName)){
-			if (buy(stockName,shares))
-				client.sendBuySuccess(socket,userName);
+		if (id != -1){
+			if ((price = exchange.buy(id,shares)) > 0)
+				client.sendBuySuccess(socket,userName,stockName,price);
 			else
 				//add failure reason
-				client.sendBuyFailure(socket,userName,"");
+				client.sendBuyFailure(socket,userName,stockName,"");
 		}
 		else{
 			// find which exchange it belongs
 			Address dest = exchange.routing(stockName);
 			// not found
 			if (dest == null)
-				client.sendBuyFailure(socket,userName,"Stock not found");
+				client.sendBuyFailure(socket,userName,stockName,"Stock not found");
 			else
 			{
-				int orderStatus = client.sendRemoteBuy(dest,stockName,shares);
-				if (orderStatus==0)
-					client.sendBuySuccess(socket,userName);
+				price = client.sendRemoteBuy(dest,stockName,shares);
+				if (price >= 0)
+					client.sendBuySuccess(socket,userName,stockName,price);
 				else{
-					String reason;
-					if (orderStatus==1)	reason = "No inventory";
-					else if (orderStatus == 2)	reason = "Remote Exchange not online";
-					else reason = "Routing error";
-					client.sendBuyFailure(socket,userName,reason);
+					String reason = "Routing error";
+					client.sendBuyFailure(socket,userName,stockName,reason);
 				}
 			}
 		}
@@ -118,54 +124,66 @@ class Service extends Thread{
 	
 	//handle user sell request
 	void sellHandler(String userName, String stockName, int shares){
-		if (exchange.hasStock(stockName)){
-			if (sell(stockName,shares))
-				client.sendSellSuccess(socket,userName);
+		if (exchange.mutualFundList.containsKey(stockName)){
+			double price = exchange.sellMutualFund(stockName, shares);
+			if (price >= 0)
+			{
+				client.sendSellSuccess(socket,userName,stockName,price);
+				return;
+			}
+		}
+		int id = exchange.my_db.QueryStockID((stockName));
+		double price;
+		if (id != -1){
+			if ((price = exchange.sell(true,id,shares)) > 0)
+				client.sendSellSuccess(socket,userName,stockName,price);
 			else
 				//add failure reason
-				client.sendSellFailure(socket,userName,"");
+				client.sendSellFailure(socket,userName,stockName,"");
 		}
 		else{
 			Address dest = exchange.routing(stockName);
 			if (dest == null)
-				client.sendSellFailure(socket,userName,"Stock not found");
+				client.sendSellFailure(socket,userName,stockName,"Stock not found");
 			else
 			{
-				int orderStatus = client.sendRemoteSell(dest,stockName,shares);
-				if (orderStatus==0)
-					client.sendSellSuccess(socket,userName);
+				price = client.sendRemoteSell(dest,stockName,shares);
+				if (price >= 0)
+					client.sendSellSuccess(socket,userName, stockName, price);
 				else{
-					String reason;
-					if (orderStatus==3)	reason = "Routing error";
-					else if (orderStatus == 2)	reason = "Remote Exchange not online";
-					client.sendSellFailure(socket,userName,reason);
+					String reason = "Remote Exchange not online";
+					client.sendSellFailure(socket,userName,stockName,reason);
 				}
 			}
 		}
 	}
 	
 	void exchangeBuyhandler(String exchangeName, String stockName, int shares){
-		if (exchange.hasStock(stockName)){
-			if (buy(stockName,shares))
-				client.sendExchangeBuySuccess(socket,exchangeName);
+		int id = exchange.my_db.QueryStockID((stockName));
+		double price;
+		if (id != -1){
+			if ((price = exchange.buy(id,shares)) > 0)
+				client.sendExchangeBuySuccess(socket,exchangeName, stockName, price);
 			else
 				//add failure reason
-				client.sendExchangeBuyFailure(socket,exchangeName,"");
+				client.sendExchangeBuyFailure(socket,exchangeName,stockName,"");
 		}
 		else
-				client.sendExchangeBuyFailure(socket,exchangeName,"Stock not found");
+				client.sendExchangeBuyFailure(socket,exchangeName,stockName,"Stock not found");
 	}
 	
 	void exchangeSellhandler(String exchangeName, String stockName, int shares){
-		if (exchange.hasStock(stockName)){
-			if (sell(stockName,shares))
-				client.sendExchangeSellSuccess(socket,exchangeName);
+		int id = exchange.my_db.QueryStockID((stockName));
+		double price;
+		if (id != -1){
+			if ((price = exchange.sell(true, id,shares)) > 0)
+				client.sendExchangeSellSuccess(socket,exchangeName,stockName,price);
 			else
 				//add failure reason
-				client.sendExchangeSellFailure(socket,exchangeName,"");
+				client.sendExchangeSellFailure(socket,exchangeName,stockName,"");
 		}
 		else
-				client.sendExchangeSellFailure(socket,exchangeName,"Stock not found");
+				client.sendExchangeSellFailure(socket,exchangeName,stockName,"Stock not found");
 	}
 	
 	void findStockHandler(String stockName){
@@ -190,4 +208,5 @@ class Service extends Thread{
 		Address newExchange = new Address(name, exchange.address.continent, IP, port);
 		exchange.addAddress(name, newExchange);
 	}
+	
 }

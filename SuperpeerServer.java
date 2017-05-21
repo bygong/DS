@@ -48,7 +48,7 @@ class SuperpeerService extends Thread{
 				){
 			//extract type information
 			String inputString = in.readLine();
-			String[] commands = inputString.split("|");
+			String[] commands = inputString.split("\\|");
 			command = commands[0];
 	
 			//if type is ack

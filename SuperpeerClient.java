@@ -28,7 +28,7 @@ public class SuperpeerClient {
 			channel.output.println("Find|"+stockName);
 			channel.socket.setSoTimeout(TIMEOUT);
 			String response = channel.input.readLine();
-			String[] contents = response.split("|");
+			String[] contents = response.split("\\|");
 			if (contents[1].equals("Success")){
 				return dest;
 			}
@@ -59,10 +59,10 @@ public class SuperpeerClient {
 			channel.socket.setSoTimeout(TIMEOUT);
 			channel.output.println(message);
 			String response = channel.input.readLine();
-			String[] contents = response.split("|");
+			String[] contents = response.split("\\|");
 			
 			while((response = channel.input.readLine()) != null){
-				contents = response.split("|");
+				contents = response.split("\\|");
 				Address superPeer = new Address(contents[0], contents[1], contents[2], Integer.parseInt(contents[3]));
 				superpeer.superPeers.put(superPeer.continent, superPeer);
 			}
