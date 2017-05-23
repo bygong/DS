@@ -9,7 +9,7 @@ import org.omg.CORBA.TIMEOUT;
 public class SuperpeerClient {
 	Superpeer superpeer;
 	SuperpeerServer serverDelegate;
-	static final int TIMEOUT = 5000;
+	static final int TIMEOUT = 100000;
 	
 	public SuperpeerClient(Superpeer superpeer) {
 		this.superpeer = superpeer;
@@ -24,24 +24,54 @@ public class SuperpeerClient {
 	
 //------------------------initiative service---------------------------
 	Address sendRoute(Address dest, String stockName){
+		System.out.println("Routing to " + dest.name + " for " + stockName);
 		try (Channel channel = new Channel(dest);){
-			channel.output.println("Find|"+stockName);
+			if (superpeer.superPeers.containsKey(dest.name))
+				channel.output.println("RemoteFind|"+stockName);
+			else
+				channel.output.println("Find|"+stockName);
+			
 			channel.socket.setSoTimeout(TIMEOUT);
 			String response = channel.input.readLine();
+			System.out.println(response);
 			String[] contents = response.split("\\|");
 			if (contents[1].equals("Success")){
+				System.out.println("Found " + stockName + " at " + dest.name);
 				return dest;
 			}
 			else{
 				return null;
 			}
 		}catch (Exception e) {
+			e.printStackTrace();
+			return null;
+		}
+	}
+	
+	Address sendRemoteRoute(Address dest, String stockName){
+		System.out.println("Routing remotely to " + dest.name + " for " + stockName);
+		try (Channel channel = new Channel(dest);){
+			channel.output.println("RemoteFind|"+stockName);
+			channel.socket.setSoTimeout(TIMEOUT);
+			String response = channel.input.readLine();
+			System.out.println(response);
+			String[] contents = response.split("\\|");
+			if (contents[1].equals("Success")){
+				Address result = new Address(contents[3], contents[2], contents[4], Integer.parseInt(contents[5]));
+				return result;
+			}
+			else{
+				return null;
+			}
+		}catch (Exception e) {
+			e.printStackTrace();
 			return null;
 		}
 	}
 	
 	//register new exchange coming in, notify "dest" exchange
 	void sendNewExchange(Address dest, Address newExchange){
+		System.out.println(dest.IP + dest.port);
 		try(Channel channel = new Channel(dest);){
 			String message = "ExchangeRegistration|" + newExchange.name + "|" + newExchange.IP + "|" + newExchange.port;
 			channel.socket.setSoTimeout(TIMEOUT);
@@ -51,32 +81,69 @@ public class SuperpeerClient {
 		}
 	}
 	
-	void sendSuperpeerRegistration(){
+	boolean sendSuperpeerRegistration(){
 		try (
 				Channel channel = new Channel(superpeer.houseKeeperAddress);
 				){
-			String message = "SuperpeerRegistration|" + superpeer.houseKeeperAddress.name + "|" + superpeer.address.name;
+			String message = "SuperpeerRegistration|" + superpeer.address.continent + "|" + superpeer.address.name + "|"+superpeer.address.IP+"|"+superpeer.address.port;
+			System.out.println(message);
 			channel.socket.setSoTimeout(TIMEOUT);
 			channel.output.println(message);
 			String response = channel.input.readLine();
 			String[] contents = response.split("\\|");
-			
-			while((response = channel.input.readLine()) != null){
-				contents = response.split("\\|");
-				Address superPeer = new Address(contents[0], contents[1], contents[2], Integer.parseInt(contents[3]));
+			if (contents.length > 1 && contents[1].equals("Exists"))
+				return false;
+			int count = 1;
+			while(count < contents.length){
+				Address superPeer = new Address(contents[count], contents[count+1], contents[count+2], Integer.parseInt(contents[count+3]));
 				superpeer.superPeers.put(superPeer.continent, superPeer);
+				System.out.println("Other superpeer received: " + superPeer.name);
+				count += 4;
 			}
+			return true;
 			
 		} catch (Exception e) {
 			System.out.println("Superpeer " + superpeer.address.name + " registration error.");
-			return;
+			e.printStackTrace();
+			return false;
 		}
 		
 	}
+	
+	boolean sendAskElection(Address dest){
+		System.out.println("Asking " + dest.name + " to hold a electioin");
+		try(
+				Channel channel = new Channel(dest);
+			){
+				channel.output.println("Election");
+				channel.socket.setSoTimeout(TIMEOUT);
+				String response = channel.input.readLine();
+				if (response.equals("ElectionACK"))
+					return true;
+				return false;
+			}
+			catch (Exception e) {
+				System.out.println("Asking election error");
+				return false;
+			}
+	}
+	
+	void sendSuperpeerOffline(){
+		System.out.println("Superpeer " + superpeer.address.name + " logging off.");
+		try(Channel channel = new Channel(superpeer.houseKeeperAddress);){
+			String message = "SuperpeerDown|" + superpeer.address.continent + "|" + superpeer.address.name + "|" + superpeer.address.IP + "|" + superpeer.address.port;
+			channel.socket.setSoTimeout(TIMEOUT);
+			channel.output.println(message);
+		}catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
 //	---------------------------passive service----------------------------------------------
 	void sendFindSuccess(Socket s, Address address){
 		try (PrintWriter out = new PrintWriter(s.getOutputStream());){
-			out.println("Find|Success" + address.continent+"|"+address.name+"|"+address.IP+"|"+address.port);
+			out.println("Find|Success" + "|" +address.continent+"|"+address.name+"|"+address.IP+"|"+address.port);
+			
 		}catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -89,6 +156,29 @@ public class SuperpeerClient {
 			e.printStackTrace();
 		}
 	}
+	
+	void sendExchangeRegistrationResponse(Socket socket, String exchangeName){
+		String response = "ExchangeRegistrationResponse|";
+		try (PrintWriter out = new PrintWriter(socket.getOutputStream());){
+			for (String ex : superpeer.innerExchanges.keySet()){
+				if(!ex.equals(exchangeName))
+					response += superpeer.innerExchanges.get(ex).name+"|"+superpeer.innerExchanges.get(ex).IP+"|"+superpeer.innerExchanges.get(ex).port+"|";
+			}
+			out.println(response);
+		}catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+	void sendExchangeOffline(Address dest, String name){
+		try(
+				Channel channel = new Channel(dest);){
+			channel.output.println("ExchangeDown|"+name);
+		}catch (Exception e) {
+			System.out.println("Notifying exchange offline error");
+		}
+	}
+	
 	
 
 	

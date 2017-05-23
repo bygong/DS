@@ -3,24 +3,24 @@ import java.util.HashMap;
 
 class Superpeer{
 	
-	Address address, houseKeeperAddress = new Address("Housekeeper", null, "localhost", 10000);
-	HashMap<String, Address> innerExchanges;
-	HashMap<String, Address> superPeers;
+	Address address, houseKeeperAddress = new Address("Housekeeper", null, "localhost", 8080);
+	HashMap<String, Address> innerExchanges = new HashMap<>();
+	HashMap<String, Address> superPeers = new HashMap<>();
 	
 	SuperpeerClient client;
 	SuperpeerServer server;
 	
 	Exchange exchangeDelegate;
 	
-	public Superpeer(Address address1) {
+	public Superpeer(Address address1, Exchange e) {
 		this.address = address1;
 		superPeers = new HashMap<>();
-		updateInfo();
+		client = new SuperpeerClient(this);
+		server = new SuperpeerServer(this);
+		exchangeDelegate = e;
 	}
 	
 	public void run(){
-		client = new SuperpeerClient(this);
-		server = new SuperpeerServer(this);
 		
 		client.serverDelegate = server;
 		server.clientDelegate = client;
@@ -31,6 +31,7 @@ class Superpeer{
 	
 	public Address routeTo(String stockName){
 		Address address;
+		System.out.println("routing for " + stockName);
 		if ((address = routeInner(stockName)) != null){
 			return address;
 		}
@@ -45,7 +46,7 @@ class Superpeer{
 		for (String peer : superPeers.keySet()){
 			if (peer == exchangeDelegate.address.name)
 				continue;
-			if ((result = client.sendRoute(superPeers.get(peer),stockName)) != null)
+			if ((result = client.sendRemoteRoute(superPeers.get(peer),stockName)) != null)
 				return result;	
 		}
 		
@@ -55,7 +56,7 @@ class Superpeer{
 	
 	public Address routeInner(String stockName){
 		Address result;
-		if (exchangeDelegate.stockShelf.containsKey(stockName))
+		if (exchangeDelegate.my_db.QueryStockID(stockName) != -1)
 			return exchangeDelegate.address;
 		
 		for (String peer : innerExchanges.keySet()){
@@ -69,16 +70,37 @@ class Superpeer{
 	
 	void RegisterExchange(Address newExchange){
 		for (String ex : innerExchanges.keySet()){
-			client.sendNewExchange(innerExchanges.get(ex), newExchange);
+			if(!ex.equals(newExchange.name))
+				client.sendNewExchange(innerExchanges.get(ex), newExchange);
 		}
 		addInnerExchange(newExchange.name, newExchange);
 	}
 	
 	void addInnerExchange(String name, Address address){
+		System.out.println("New exchange in this domain: " + name);
 		innerExchanges.put(name, address);
 	}
 	
-	void updateInfo(){
-		client.sendSuperpeerRegistration();
+	void removeInnerExchange(String name){
+		innerExchanges.remove(name);
+	}
+	
+	void addSuperpeer(String name, Address address){
+		System.out.println("New superpeer received: " + name);
+		superPeers.put(name, address);
+	}
+	
+	boolean updateInfo(){
+		return client.sendSuperpeerRegistration();
+	}
+	
+	void offline(){
+		client.sendSuperpeerOffline();
+		
+		for (String name : innerExchanges.keySet()){
+			boolean success = client.sendAskElection(innerExchanges.get(name));
+			if (success)
+				break;
+		}
 	}
 }

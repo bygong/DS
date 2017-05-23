@@ -8,7 +8,7 @@ public class ExchangeClient {
 	
 	Exchange exchange;
 	ExchangeServer serverDelegate;
-	static final int TIMEOUT = 5000;
+	static final int TIMEOUT = 100000;
 	
 	//-------------------initiative service---------------------
 	public ExchangeClient(Exchange exchange) {
@@ -18,15 +18,17 @@ public class ExchangeClient {
 	boolean sendRegister(){
 		try (Channel channel = new Channel(exchange.superPeerAddress);){
 			channel.output.println("ExchangeRegistration|"+exchange.address.name +"|" + exchange.address.IP + "|" + exchange.address.port);
-			channel.socket.setSoTimeout(5000);
+			channel.socket.setSoTimeout(TIMEOUT);
 			String response = channel.input.readLine();
+			System.out.println(response);
 			String[] contents = response.split("\\|");
 			if (contents[0].equals("ExchangeRegistrationResponse"))
 			{
-				while((response = channel.input.readLine()) != null){
-					contents = response.split("\\|");
-					Address otherExchange = new Address(contents[2], contents[3], contents[4], Integer.parseInt(contents[5]));
+				int count = 1;
+				while(count < contents.length){
+					Address otherExchange = new Address(contents[count], exchange.address.continent, contents[count+1], Integer.parseInt(contents[count+2]));
 					exchange.addAddress(otherExchange.name, otherExchange);
+					count += 3;
 				}
 				return true;
 			}
@@ -34,7 +36,8 @@ public class ExchangeClient {
 				return false;
 			}
 		}catch (Exception e) {
-			System.out.println("register error");
+			System.out.println("register to super peer error");
+			e.printStackTrace();
 			return false;
 		}
 	}
@@ -42,8 +45,9 @@ public class ExchangeClient {
 	boolean sendHousekeeperRegister(){
 		try (Channel channel = new Channel(exchange.housekeeperAddress);){
 			channel.output.println("ExchangeRegistration|"+exchange.address.name +"|" +exchange.address.continent + "|" + exchange.address.IP + "|" + exchange.address.port);
-			channel.socket.setSoTimeout(5000);
+			channel.socket.setSoTimeout(TIMEOUT);
 			String response = channel.input.readLine();
+			System.out.println(response);
 			String[] contents = response.split("\\|");
 			if (contents[0].equals("ExchangeRegistrationResponse"))
 			{
@@ -56,7 +60,7 @@ public class ExchangeClient {
 				return false;
 			}
 		}catch (Exception e) {
-			System.out.println("register error");
+			System.out.println("register to housekeeper error");
 			return false;
 		}
 	}
@@ -66,10 +70,11 @@ public class ExchangeClient {
 	double sendRemoteBuy(Address dest, String stockName, int shares){
 		try (Channel channel = new Channel(dest);){
 			channel.output.println("ExchangeBuy|"+exchange.address.name+"|"+stockName+"|"+shares);
-			channel.socket.setSoTimeout(5000);
+			channel.socket.setSoTimeout(TIMEOUT);
 			String response = channel.input.readLine();
+			System.out.println(response);
 			String[] contents = response.split("\\|");
-			if (contents[1].equals("Succeess"))
+			if (contents[1].equals("Success"))
 			{
 				double price = Double.parseDouble(contents[2]);
 				return price;
@@ -89,10 +94,11 @@ public class ExchangeClient {
 	double sendRemoteSell(Address dest, String stockName, int shares){
 		try (Channel channel = new Channel(dest);){
 			channel.output.println("ExchangeSell|"+exchange.address.name+"|"+stockName+"|"+shares);
-			channel.socket.setSoTimeout(5000);
+			channel.socket.setSoTimeout(TIMEOUT);
 			String response = channel.input.readLine();
+			System.out.println(response);
 			String[] contents = response.split("\\|");
-			if (contents[1].equals("Succeess"))
+			if (contents[1].equals("Success"))
 			{
 				double price = Double.parseDouble(contents[2]);
 				return price;
@@ -107,13 +113,15 @@ public class ExchangeClient {
 	
 	Address sendRoute(Address superPeerAddress, String stockName){
 		try (Channel channel = new Channel(superPeerAddress);){
+			System.out.println("Sending routing of " +stockName);
 			channel.output.println("Find|"+stockName);
-			channel.socket.setSoTimeout(5000);
+			channel.socket.setSoTimeout(TIMEOUT);
 			String response = channel.input.readLine();
+			System.out.println(response);
 			String[] contents = response.split("\\|");
 			if (contents[1].equals("Success"))
 			{
-				Address ret = new Address(contents[2], contents[3], contents[4], Integer.parseInt(contents[5]));
+				Address ret = new Address(contents[3], contents[2], contents[4], Integer.parseInt(contents[5]));
 				return ret;
 			}
 			else{
@@ -205,6 +213,27 @@ public class ExchangeClient {
 		}catch (Exception e) {
 			e.printStackTrace();
 		}
+	}
+	
+	void sendOffline(){
+		try(
+				Channel channel = new Channel(exchange.superPeerAddress);
+				){
+			channel.output.println("ExchangeOffline|"+exchange.address.name);
+		}catch (Exception e) {
+			System.out.println("Offline error");
+		}
+		
+	}
+	
+	void sendLogoff(){
+		try(
+				Channel channel = new Channel(exchange.housekeeperAddress);
+			){
+				channel.output.println("ExchangeLogoff|" + exchange.address.name);
+			}catch (Exception e) {
+				System.out.println("Logging off error");
+			}
 	}
 	
 	

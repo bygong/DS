@@ -62,6 +62,7 @@ class Service extends Thread{
 				sellHandler(commands[1],commands[2],Integer.parseInt(commands[3]));
 				break;
 			case "ExchangeBuy":
+				System.out.println(inputString);
 				exchangeBuyhandler(commands[1],commands[2],Integer.parseInt(commands[3]));
 				break;
 			case "ExchangeSell":
@@ -75,6 +76,13 @@ class Service extends Thread{
 				break;
 			case "ExchangeRegistration":
 				newExchangeHandler(commands[1],commands[2],Integer.parseInt(commands[3]));
+				break;
+			case "ExchangeDown":
+				exchangeDownHandler(commands[1]);
+				break;
+			case "Election":
+				electionRequestHandler();
+				break;
 			default:
 				break;
 			}
@@ -90,8 +98,11 @@ class Service extends Thread{
 			if (price >= 0)
 			{
 				client.sendBuySuccess(socket,userName,stockName,price);
-				return;
 			}
+			else{
+				client.sendBuyFailure(socket, userName, stockName,"");
+			}
+			return;
 		}
 		int id = exchange.my_db.QueryStockID((stockName));
 		double price;
@@ -130,6 +141,9 @@ class Service extends Thread{
 			{
 				client.sendSellSuccess(socket,userName,stockName,price);
 				return;
+			}
+			else{
+				client.sendSellFailure(socket, userName, stockName,"");
 			}
 		}
 		int id = exchange.my_db.QueryStockID((stockName));
@@ -187,7 +201,7 @@ class Service extends Thread{
 	}
 	
 	void findStockHandler(String stockName){
-		if (exchange.stockShelf.containsKey(stockName)){
+		if (exchange.my_db.QueryStockID((stockName)) != -1 ){
 			client.sendFindSuccess(socket,stockName);
 		}else{
 			client.sendFindFailure(socket,stockName);
@@ -195,18 +209,27 @@ class Service extends Thread{
 	}
 	
 	void timeSyncHandler(int timeStamp){
+		System.out.println("Time synchronized: " +timeStamp);
 		synchronized (exchange.exchangeTime) {
 			exchange.exchangeTime = timeStamp;
 		}
 		if (!exchange.systemInitiated){
 			exchange.systemInitiated = true;
-			exchange.timer.scheduleAtFixedRate(exchange.timerTask, 0, Exchange.timeInterval);
+			exchange.timer.scheduleAtFixedRate(exchange.timerTask, exchange.TIME_INTERVAL, exchange.TIME_INTERVAL);
 		}
 	}
 	
 	void newExchangeHandler(String name, String IP, int port){
 		Address newExchange = new Address(name, exchange.address.continent, IP, port);
 		exchange.addAddress(name, newExchange);
+	}
+	
+	void exchangeDownHandler(String name){
+		exchange.removeAddress(name);
+	}
+	
+	void electionRequestHandler(){
+		exchange.holdElection();
 	}
 	
 }

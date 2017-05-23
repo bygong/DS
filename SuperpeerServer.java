@@ -62,6 +62,12 @@ class SuperpeerService extends Thread{
 				case "ExchangeRegistration":
 					exchangeRegistrationHandler(commands[1],commands[2],Integer.parseInt(commands[3]));
 					break;
+				case "NewSuperpeerRegistration":
+					newSuperpeerHandler(commands[1],commands[2],commands[3],Integer.parseInt(commands[4]));
+					break;
+				case "ExchangeOffline":
+					exchangeOfflineHandler(commands[1]);
+					break;
 				default:
 					break;
 			}
@@ -74,6 +80,7 @@ class SuperpeerService extends Thread{
 	void findHandler(String stockName){
 		Address address = superpeer.routeTo(stockName);
 		if (address != null){
+			System.out.println("Found " + stockName + " at " + address.name);
 			client.sendFindSuccess(socket,address);
 		}
 		else {
@@ -94,5 +101,20 @@ class SuperpeerService extends Thread{
 	void exchangeRegistrationHandler(String name, String IP, int port){
 		Address newExchange = new Address(name, superpeer.address.continent, IP, port);
 		superpeer.RegisterExchange(newExchange);
+		client.sendExchangeRegistrationResponse(socket, name);
+	}
+	
+	void newSuperpeerHandler(String name, String continent, String IP, int port){
+		Address newSuperpeer = new Address(name, continent, IP, port);
+		superpeer.addSuperpeer(name, newSuperpeer);
+	}
+	
+	void exchangeOfflineHandler(String name){
+		System.out.println(name + " offline.");
+		superpeer.exchangeDelegate.removeAddress(name);
+		superpeer.removeInnerExchange(name);
+		for (String innerExchange : superpeer.innerExchanges.keySet()){
+			client.sendExchangeOffline(superpeer.innerExchanges.get(innerExchange), name);
+		}
 	}
 }

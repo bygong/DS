@@ -96,7 +96,8 @@ public class DataBase_Connection {
 				stock_id = rs.getInt("id");
 				
 				//Display
-				System.out.println("id = " + stock_id);
+				
+				System.out.println("Found " + stock + " id = " + stock_id);
 			}
 			
 			//Clean-up
@@ -207,7 +208,7 @@ public class DataBase_Connection {
 			ResultSet rs = stmt.executeQuery(sql);
 			
 			//Extract data
-			System.out.println("Extract data");
+//			System.out.println("Extract data");
 			float price = 0;
 			while (rs.next()) {
 				//Retrieve by column index
@@ -215,18 +216,18 @@ public class DataBase_Connection {
 					try {
 						price = rs.getFloat(index);
 					}catch (Exception e) {
-						System.err.println("BREAK");
+//						System.err.println("BREAK");
 						break;
 					}
 					tmp.add(price);
 					index++;
 					
 					//Display
-					System.out.println(price);
+//					System.out.println(price);
 				}
 			}
-			System.err.println(index);
-			System.err.println(tmp.size());
+//			System.err.println(index);
+//			System.err.println(tmp.size());
 			//Clean-up
 			rs.close();
 			stmt.close();
@@ -264,18 +265,18 @@ public class DataBase_Connection {
 					try {
 						qty = rs.getInt(index);
 					}catch (Exception e) {
-						System.err.println("BREAK");
+//						System.err.println("BREAK");
 						break;
 					}
 					tmp.add(qty);
 					index++;
 					
 					//Display
-					System.out.println(qty);
+//					System.out.println(qty);
 				}
 			}
-			System.err.println(index);
-			System.err.println(tmp.size());
+//			System.err.println(index);
+//			System.err.println(tmp.size());
 			
 			//Clean-up
 			rs.close();
@@ -337,13 +338,14 @@ public class DataBase_Connection {
 					sql = "UPDATE " + Stock_qty_log + " SET " + "C" + id + "=" + tmp.get(i) + " WHERE timer = " + t;
 					System.out.println(sql);
 					stmt.execute(sql);
+//					
 				}
 			}
 			
 			//update only one stock
 			else {
 				sql = "UPDATE " + tmp_qty + " SET " + "C" + stock_id + "=" + tmp.get(stock_id -1);
-				System.out.println(sql);
+//				System.out.println(sql);
 				stmt.execute(sql);
 			}
 			
@@ -380,7 +382,7 @@ public class DataBase_Connection {
 					//stock_id starts from 1
 					int id = i +1;		
 					sql = "UPDATE " + tmp_qty + " SET " + "C" + id + "=" + tmp.get(i);
-					System.out.println(sql);
+//					System.out.println(sql);
 					stmt.execute(sql);
 				}
 			}
@@ -388,7 +390,7 @@ public class DataBase_Connection {
 			//update only one stock
 			else {
 				sql = "UPDATE " + tmp_qty + " SET " + "C" + stock_id + "=" + tmp.get(stock_id -1);
-				System.out.println(sql);
+//				System.out.println(sql);
 				stmt.execute(sql);
 			}
 			
@@ -430,18 +432,18 @@ public class DataBase_Connection {
 					try {
 						qty = rs.getInt(index);
 					}catch (Exception e) {
-						System.err.println("BREAK");
+//						System.err.println("BREAK");
 						break;
 					}
 					tmp.add(qty);
 					index++;
 					
 					//Display
-					System.out.println(qty);
+//					System.out.println(qty);
 				}
 			}
-			System.err.println(index);
-			System.err.println(tmp.size());
+//			System.err.println(index);
+//			System.err.println(tmp.size());
 			
 			//Clean-up
 			rs.close();

@@ -1,6 +1,9 @@
 import java.awt.List;
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.Socket;
 import java.nio.channels.*;
 import java.sql.SQLNonTransientConnectionException;
 import java.sql.Time;
@@ -18,17 +21,17 @@ public class Exchange{
 	static ExchangeServer server;
 	static Superpeer superpeer;
 	static boolean clientInitiated = false, registered = false, systemInitiated = false;
-	static Integer exchangeTime = 0;
+	static Integer exchangeTime = 1;
 	
 	public DataBase_Connection my_db;			//database of the exchange
 	private ArrayList<Float> price;				//price of every stock in the exchange per timer(from table)
 	private ArrayList<Integer> table_quantity;	//quantity of every stock in the exchange per timer(from table)
 	private ArrayList<Integer> write_quantity;	//quantity written to tmp_quantity table
-	static Timer timer;
+	static Timer timer = new Timer();
 	
 	ExchangeTimer timerTask = new ExchangeTimer();
 	
-	public static final int timeout = 5000, timeInterval = 3000;
+	public static final int TIMEOUT = 100000, TIME_INTERVAL = 100*1000, DNS_TIMEOUT = 5;
 	
 	static Address housekeeperAddress = new Address("Housekeeper", null, "localhost", 8080);
 	static Address superPeerAddress;
@@ -39,12 +42,12 @@ public class Exchange{
 	protected static HashMap<String, DNSEntry> dnsTable = new HashMap<>();
 	protected static HashMap<String, Address> burnedInExchangeAddresses = new HashMap<String, Address>(){
 		{
-			put("New York Stock Exchange", new Address("New York Stock Exchange","America","localhost",10001));
-			put("Euronext Paris", new Address("Euronext Paris","Europe","localhost",10003));
+			put("New_York_Stock_Exchange", new Address("New_York_Stock_Exchange","America","localhost",10001));
+			put("Euronext_Paris", new Address("Euronext_Paris","Europe","localhost",10003));
 			put("Frankfurt", new Address("Frankfurt","Europe","localhost",10005));
 			put("London", new Address("London","Europe","localhost",10007));
 			put("Tokyo", new Address("Tokyo","Asia","localhost",10009));
-			put("Hong Kong", new Address("Hong Kong","Asia","localhost",10011));
+			put("Hong_Kong", new Address("Hong Kong","Asia","localhost",10011));
 			put("Shanghai", new Address("Shanghai","Asia","localhost",10013));
 			put("Brussels", new Address("Brussels","Europe","localhost",10015));
 			put("Lisbon", new Address("Lisbon","Europe","localhost",10017));
@@ -55,18 +58,18 @@ public class Exchange{
 			put("Sydney", new Address("Sydney","Asia","localhost",10027));
 			put("Seoul", new Address("Seoul","Asia","localhost",10029));
 			put("Johannesburg", new Address("Johannesburg","Europe","localhost",10031));
-			put("Paulo,Sao", new Address("Paulo,Sao","America","localhost",10033));
+			put("Sao_Paulo", new Address("Sao_Paulo","America","localhost",10033));
 		}
 	};
 	
 	protected static HashMap<String, Address> burnedInSuperpeerAddresses = new HashMap<String, Address>(){
 		{
-			put("New York Stock Exchange", new Address("New York Stock Exchange","America","localhost",10002));
-			put("Euronext Paris", new Address("Euronext Paris","Europe","localhost",10004));
+			put("New_York_Stock_Exchange", new Address("New_York_Stock_Exchange","America","localhost",10002));
+			put("Euronext_Paris", new Address("Euronext_Paris","Europe","localhost",10004));
 			put("Frankfurt", new Address("Frankfurt","Europe","localhost",10006));
 			put("London", new Address("London","Europe","localhost",10008));
 			put("Tokyo", new Address("Tokyo","Asia","localhost",10010));
-			put("Hong Kong", new Address("Hong Kong","Asia","localhost",10012));
+			put("Hong_Kong", new Address("Hong Kong","Asia","localhost",10012));
 			put("Shanghai", new Address("Shanghai","Asia","localhost",10014));
 			put("Brussels", new Address("Brussels","Europe","localhost",10016));
 			put("Lisbon", new Address("Lisbon","Europe","localhost",10018));
@@ -77,15 +80,15 @@ public class Exchange{
 			put("Sydney", new Address("Sydney","Asia","localhost",10028));
 			put("Seoul", new Address("Seoul","Asia","localhost",10030));
 			put("Johannesburg", new Address("Johannesburg","Europe","localhost",10032));
-			put("Paulo,Sao", new Address("Paulo,Sao","America","localhost",10034));
+			put("Sao_Paulo", new Address("Sao_Paulo","America","localhost",10034));
 		}
 	};
 	
 	protected static HashMap<String, String> initialSuperpeer = new HashMap<String, String>(){
 		{
-			put("America","New York Stock Exchange");
-			put("Europe","London");
-			put("Asia","Tokyo");
+			put("America","New_York_Stock_Exchange");
+			put("Europe","Lisbon");
+			put("Asia","Seoul");
 		}
 	};
 	
@@ -127,10 +130,13 @@ public class Exchange{
 	class ExchangeTimer extends TimerTask{
 		@Override
 		public void run() {
-			for (String entry : dnsTable.keySet()){
-				if ((dnsTable.get(entry).TTL--) == 0)
-					dnsTable.remove(entry);
+			synchronized (dnsTable) {
+				for (String entry : dnsTable.keySet()){
+					if ((dnsTable.get(entry).TTL--) == 0)
+						dnsTable.remove(entry);
+				}
 			}
+			
 			timer_tick();
 		}
 	}
@@ -154,26 +160,43 @@ public class Exchange{
 		//-------------------------------------------------
 		
 		//start the exchange
-		Exchange exchange = new Exchange(args[0], initialSuperpeer.get(burnedInExchangeAddresses.get(args[0]).continent) == args[0]);
+		Exchange exchange = new Exchange(args[0], initialSuperpeer.get(burnedInExchangeAddresses.get(args[0]).continent).equals(args[0]));
 		exchange.start();
 	}
 	
 	//constructor, specifying its super peer
 	public Exchange(String name, boolean isSuper) {
 		my_db = new DataBase_Connection(name);
-		
+		write_quantity = new ArrayList<>();
 		//initialize write_quantity
 		QueryQty();
-		for (int i=0; i<price.size(); i++)
+		QueryPrice();
+//		System.err.println(table_quantity.size());
+		for (int i=0; i<table_quantity.size(); i++)
 			write_quantity.add(table_quantity.get(i));
+		
+//		System.err.println(write_quantity.size());
 		//update to tmp_quantity table
 		my_db.to_tmpQty(-1, write_quantity, true);
+		
+		System.out.println("DB ready.");
+		
+		address = burnedInExchangeAddresses.get(name);
 		if (isSuper)
 		{
 			becomeSuperpeer();
 			registered = true;
+			superpeer.innerExchanges.put(address.name, address);
+			superpeer.run();
 		}
-		superpeer.innerExchanges.put(address.name, address);
+		
+		server = new ExchangeServer(this);
+		client = new ExchangeClient(this);
+		
+		server.clientDelegate = client;
+		client.serverDelegate = server;
+		server.start();
+		
 		
 	}
 	
@@ -184,31 +207,38 @@ public class Exchange{
 			
 			//create server and client side of this peer
 			//server runs as thread while main thread listening on user input
-			server = new ExchangeServer(this);
-			client = new ExchangeClient(this);
-			
-			server.clientDelegate = client;
-			client.serverDelegate = server;
 			
 			
 			
-			while(!registered)
+			
+//			while(!registered)
 			{
 				registered = client.sendHousekeeperRegister();
 			}
 			
 			registered = false;
 			
-			while(!registered){
+//			while(!registered){
+			{
 				registered = client.sendRegister();
 			}
 
-			server.start();
 			
 
 		}catch (Exception e) {
 			System.out.println(e.toString());
 		}
+		
+		// Trap exit
+        Runtime.getRuntime().addShutdownHook(new Thread() {public void run(){
+          
+        	client.sendOffline();
+        	client.sendLogoff();
+        	
+        	if (superpeer != null){
+        		superpeer.offline();
+        	}
+        }});
 	}
 	
 	public boolean hasStock(String stockName) {
@@ -219,15 +249,27 @@ public class Exchange{
 	
 	//add a dns entry to my pool
 	public void addAddress(String s, Address a){
-		addressPool.put(s, a);
+		System.out.println("Adding " + s + ".");
+		synchronized (addressPool) {
+			addressPool.put(s, a);
+		}
 	}
 	
+	public void removeAddress(String s){
+		System.out.println("Removing " + s + ".");
+		synchronized (addressPool) {
+			addressPool.remove(s);
+		}
+	}
 	
 	Address routing(String stockName){
 		Address dest;
 		
 		if (dnsTable.containsKey(stockName))
+		{
+			System.out.println("DNS cache of \"" + stockName +"\" found: " + dnsTable.get(stockName).address.name);
 			return dnsTable.get(stockName).address;
+		}
 		if (superpeer!=null){
 			dest = superpeer.routeTo(stockName);
 		}
@@ -237,6 +279,7 @@ public class Exchange{
 		if (dest != null){
 			addDNSEntry(stockName, dest);
 		}
+		if(dest != null) 	System.out.println(dest.name);
 		return dest;
 	};
 	
@@ -248,9 +291,10 @@ public class Exchange{
 	
 	void removeDNSEntry(String stockName){
 		synchronized (dnsTable) {
-			dnsTable.put(stockName, new DNSEntry(address));
+			dnsTable.remove(stockName);
 		}
 	}
+	
 
 	
 	boolean isSuperpeer(){
@@ -258,9 +302,21 @@ public class Exchange{
 	}
 	
 	void becomeSuperpeer(){
-		superpeer = new Superpeer(burnedInSuperpeerAddresses.get(address.name));
-		superPeerAddress = null;
+		System.out.println("Becoming superpeer...");
+		superpeer = new Superpeer(burnedInSuperpeerAddresses.get(address.name),this);
+		boolean success = superpeer.updateInfo();
+		if (success)
+		{
+			System.out.println("Became superpeer.");
+			superPeerAddress = null;
+		}
+		else
+		{
+			System.out.println("Superpeer already exists, stop becoming superpeer..");
+			superpeer = null;
+		}
 	}
+	
 	
 	//Query all prices at exchangeTime = t
 		public void QueryPrice() {
@@ -280,16 +336,20 @@ public class Exchange{
 		//buy in local exchange
 		//if succeed, return buy price; otherwise, return -1
 		public double buy(int stock_id, int share) {
-			int index = stock_id - 1;							//may be changed
-			int qty_before = write_quantity.get(index);
-			//no enough shares
-			if (qty_before < share)
-				return -1;
-			int qty_after = qty_before - share;
-			write_quantity.set(index, qty_after);
-			//update to tmp_quantity table
-			my_db.to_tmpQty(stock_id, write_quantity, false);
-			return price.get(index);
+			synchronized (price) {
+				synchronized (write_quantity) {
+					int index = stock_id - 1;							//may be changed
+					int qty_before = write_quantity.get(index);
+					//no enough shares
+					if (qty_before < share)
+						return -1;
+					int qty_after = qty_before - share;
+					write_quantity.set(index, qty_after);
+					//update to tmp_quantity table
+					my_db.to_tmpQty(stock_id, write_quantity, false);
+					return price.get(index);
+				}
+			}
 		}
 		
 		//buy mutual fund
@@ -313,7 +373,7 @@ public class Exchange{
 					if (dest == null)
 						break;
 					else{
-						price = client.sendRemoteBuy(dest,stockName,shares);
+						price = client.sendRemoteBuy(dest,stock,(int)(shares * fund.proportion.get(stock)));
 						if (price < 0)
 							break;
 						tmp.put(stock,price);
@@ -353,7 +413,7 @@ public class Exchange{
 					if (dest == null)
 						break;
 					else{
-						price = client.sendRemoteSell(dest,stockName,shares);
+						price = client.sendRemoteBuy(dest,stock,(int)(shares * fund.proportion.get(stock)));
 						if (price < 0)
 							break;
 						tmp.put(stock,price);
@@ -384,79 +444,50 @@ public class Exchange{
 		
 		//sell in local exchange
 		public double sell(boolean enough_share, int stock_id, int share) {
-			if (!enough_share)
-				return -1;
-			int index = stock_id - 1;				
-			int qty_after = write_quantity.get(index) + share;
-			write_quantity.set(index, qty_after);
-			//update to tmp_quantity table
-			my_db.to_tmpQty(stock_id, write_quantity, false);
-			return price.get(index);
+			synchronized (write_quantity) {
+				if (!enough_share)
+					return -1;
+				int index = stock_id - 1;				
+				int qty_after = write_quantity.get(index) + share;
+				write_quantity.set(index, qty_after);
+				//update to tmp_quantity table
+				my_db.to_tmpQty(stock_id, write_quantity, false);
+				return price.get(index);
+			}
 		}
 		//exchangeTime ticks
 		public void timer_tick() {
-			//update table_quantity at exchangeTime = t
-			my_db.updateQty(-1, write_quantity, exchangeTime, true);
-			
-			exchangeTime++;
-			//query quantities at exchangeTime = t
-			QueryQty();
-			
-			//query prices at exchangeTime = t
-			QueryPrice();
-			
-			//update write_quantity
-			for (int i=0; i<write_quantity.size(); i++) {
-				int qty = write_quantity.get(i) + table_quantity.get(i);
-				write_quantity.set(i, qty);
+			synchronized (price) {
+				synchronized (write_quantity) {
+					synchronized (table_quantity) {
+						System.err.println("timer = " + exchangeTime);
+						//update table_quantity at timer = t
+						my_db.updateQty(-1, write_quantity, exchangeTime, true);
+						
+						exchangeTime++;
+						//query quantities at timer = t
+						QueryQty();
+						
+						//query prices at timer = ts
+						QueryPrice();
+						
+						//update write_quantity
+						for (int i=0; i<write_quantity.size(); i++) {
+							int qty = write_quantity.get(i) + table_quantity.get(i);
+							write_quantity.set(i, qty);
+						}
+						
+						//update qty_record table
+						my_db.to_tmpQty(-1, write_quantity, true);
+					}
+					
+				}
+				
 			}
 		}
 }
 
 
-
-
-
-abstract class Instrument{
-	double spotPrice;
-	int quantity;
-	String name;
-}
-
-class Stock extends Instrument{
-	
-}
-
-class MutualFunds extends Instrument{
-	ArrayList<Stock> Portfolio;
-}
-
-
-
-class Investor{
-	Exchange localExchange;
-	boolean buyStock(String stockName){
-		return true;
-	}
-	boolean sellStock(String stockName){
-		return true;
-	}
-}
-
-class Company{
-	Exchange localExchange;
-	String name;
-	void issueStock(){
-		
-	}
-}
-
-class Transaction{
-	Instrument subject;
-	Investor Initiated_by;
-	int quantity;
-	Time timeStamp;
-}
 
 class Address{
 	String name;
@@ -473,7 +504,7 @@ class Address{
 
 class DNSEntry{
 	Address address;
-	int TTL = 30;
+	int TTL = Exchange.DNS_TIMEOUT;
 	public DNSEntry(Address address) {
 		this.address = address; 
 	}
