@@ -131,7 +131,7 @@ public class SuperpeerClient {
 	void sendSuperpeerOffline(){
 		System.out.println("Superpeer " + superpeer.address.name + " logging off.");
 		try(Channel channel = new Channel(superpeer.houseKeeperAddress);){
-			String message = "SuperpeerDown|" + superpeer.address.continent + "|" + superpeer.address.name + "|" + superpeer.address.IP + "|" + superpeer.address.port;
+			String message = "SuperpeerDown|" + superpeer.address.name  + "|" + superpeer.address.continent;
 			channel.socket.setSoTimeout(TIMEOUT);
 			channel.output.println(message);
 		}catch (Exception e) {

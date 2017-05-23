@@ -83,7 +83,7 @@ class Superpeer{
 	
 	void removeInnerExchange(String name){
 		innerExchanges.remove(name);
-	}
+	} 
 	
 	void addSuperpeer(String name, Address address){
 		System.out.println("New superpeer received: " + name);
@@ -96,6 +96,11 @@ class Superpeer{
 	
 	void offline(){
 		client.sendSuperpeerOffline();
+		
+		for (String name : innerExchanges.keySet()){
+			if (name != address.name)
+				client.sendExchangeOffline(innerExchanges.get(name), address.name);
+		}
 		
 		for (String name : innerExchanges.keySet()){
 			boolean success = client.sendAskElection(innerExchanges.get(name));

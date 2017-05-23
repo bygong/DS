@@ -191,6 +191,7 @@ public class Exchange{
 			superpeer.run();
 		}
 		
+		addressPool.put(address.name, address);
 		server = new ExchangeServer(this);
 		client = new ExchangeClient(this);
 		
@@ -212,14 +213,14 @@ public class Exchange{
 			
 			
 			
-//			while(!registered)
+			while(!registered)
 			{
 				registered = client.sendHousekeeperRegister();
 			}
 			
 			registered = false;
 			
-//			while(!registered){
+			while(!registered && superPeerAddress != null)
 			{
 				registered = client.sendRegister();
 			}
@@ -233,10 +234,13 @@ public class Exchange{
 		// Trap exit
         Runtime.getRuntime().addShutdownHook(new Thread() {public void run(){
           
-        	client.sendOffline();
+        	addressPool.remove(address.name);
         	client.sendLogoff();
         	
-        	if (superpeer != null){
+        	if (superpeer == null)
+        		client.sendOffline();
+        	else {
+        		superpeer.removeInnerExchange(address.name);
         		superpeer.offline();
         	}
         }});
@@ -328,7 +332,7 @@ public class Exchange{
 			int count = 0;
 			Random random = new Random();
 			
-			int proposal = random.nextInt(num-1);
+			int proposal = random.nextInt(num);
 			
 			for (String name : addressPool.keySet()){
 				if (name != address.name)

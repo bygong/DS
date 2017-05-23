@@ -114,7 +114,8 @@ class SuperpeerService extends Thread{
 		superpeer.exchangeDelegate.removeAddress(name);
 		superpeer.removeInnerExchange(name);
 		for (String innerExchange : superpeer.innerExchanges.keySet()){
-			client.sendExchangeOffline(superpeer.innerExchanges.get(innerExchange), name);
+			if (name != superpeer.address.name)
+				client.sendExchangeOffline(superpeer.innerExchanges.get(innerExchange), name);
 		}
 	}
 }

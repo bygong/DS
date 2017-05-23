@@ -236,6 +236,8 @@ class Service extends Thread{
 	}
 	
 	void electionRequestHandler(){
+		System.out.println("Asked to hold election");
+		client.replyElectionRequest(socket);
 		exchange.holdElection();
 	}
 	

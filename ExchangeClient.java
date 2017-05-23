@@ -289,6 +289,14 @@ public class ExchangeClient {
 		}
 	}
 	
+	void replyElectionRequest(Socket socket){
+		try (PrintWriter out = new PrintWriter(socket.getOutputStream());){
+			out.println("ElectionACK");
+		}catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
 	
 	Socket connectTo(Address dest){
 		Socket socket;
