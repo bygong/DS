@@ -54,6 +54,7 @@ class Service extends Thread{
 			String[] commands = inputString.split("\\|");
 			command = commands[0];
 			
+			System.out.println(inputString);
 
 			switch (command) {
 			case "BUY":
@@ -217,12 +218,21 @@ class Service extends Thread{
 	
 	void timeSyncHandler(int timeStamp){
 		System.out.println("Time synchronized: " +timeStamp);
-		synchronized (exchange.exchangeTime) {
-			exchange.exchangeTime = timeStamp;
+		synchronized (exchange.physicalTime) {
+			exchange.physicalTime = 0;
 		}
+		
 		if (!exchange.systemInitiated){
 			exchange.systemInitiated = true;
-			exchange.timer.scheduleAtFixedRate(exchange.timerTask, exchange.TIME_INTERVAL, exchange.TIME_INTERVAL);
+			exchange.timer.scheduleAtFixedRate(exchange.timerTask, 0, 1000);
+		}
+		
+		
+		synchronized (exchange.exchangeTime) {
+			if (timeStamp <= exchange.exchangeTime)
+				return;
+			exchange.exchangeTime = timeStamp;
+			exchange.exchangeTimeTick();	
 		}
 	}
 	
@@ -246,12 +256,12 @@ class Service extends Thread{
 		int count = 0;
 		Random random = new Random();
 		
-		int ref = random.nextInt(num-1);
+		int ref = random.nextInt(num);
 		
 		if (ref > proposal)
-			client.sendProposalAccept(socket);
-		else
 			client.sendProposalReject(socket);
+		else
+			client.sendProposalAccept(socket);
 	}
 	
 	void proposalCommitHandler(String name){

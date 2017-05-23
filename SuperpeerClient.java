@@ -103,7 +103,7 @@ public class SuperpeerClient {
 			return true;
 			
 		} catch (Exception e) {
-			System.out.println("Superpeer " + superpeer.address.name + " registration error.");
+//			System.out.println("Superpeer " + superpeer.address.name + " registration error.");
 			e.printStackTrace();
 			return false;
 		}

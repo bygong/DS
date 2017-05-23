@@ -23,6 +23,7 @@ public class Exchange{
 	static Superpeer superpeer;
 	static boolean clientInitiated = false, registered = false, systemInitiated = false;
 	static Integer exchangeTime = 1;
+	static Integer physicalTime = 0;
 	
 	public DataBase_Connection my_db;			//database of the exchange
 	private ArrayList<Float> price;				//price of every stock in the exchange per timer(from table)
@@ -30,9 +31,9 @@ public class Exchange{
 	private ArrayList<Integer> write_quantity;	//quantity written to tmp_quantity table
 	static Timer timer = new Timer();
 	
-	ExchangeTimer timerTask = new ExchangeTimer();
+	PhysicalTimer timerTask = new PhysicalTimer();
 	
-	public static final int TIMEOUT = 100000, TIME_INTERVAL = 100*1000, DNS_TIMEOUT = 5;
+	public static final int TIMEOUT = 100000, TIME_INTERVAL = 100, DNS_TIMEOUT = 5;
 	
 	static Address housekeeperAddress = new Address("Housekeeper", null, "localhost", 8080);
 	static Address superPeerAddress;
@@ -48,7 +49,7 @@ public class Exchange{
 			put("Frankfurt", new Address("Frankfurt","Europe","localhost",10005));
 			put("London", new Address("London","Europe","localhost",10007));
 			put("Tokyo", new Address("Tokyo","Asia","localhost",10009));
-			put("Hong_Kong", new Address("Hong Kong","Asia","localhost",10011));
+			put("Hong_Kong", new Address("Hong_Kong","Asia","localhost",10011));
 			put("Shanghai", new Address("Shanghai","Asia","localhost",10013));
 			put("Brussels", new Address("Brussels","Europe","localhost",10015));
 			put("Lisbon", new Address("Lisbon","Europe","localhost",10017));
@@ -70,7 +71,7 @@ public class Exchange{
 			put("Frankfurt", new Address("Frankfurt","Europe","localhost",10006));
 			put("London", new Address("London","Europe","localhost",10008));
 			put("Tokyo", new Address("Tokyo","Asia","localhost",10010));
-			put("Hong_Kong", new Address("Hong Kong","Asia","localhost",10012));
+			put("Hong_Kong", new Address("Hong_Kong","Asia","localhost",10012));
 			put("Shanghai", new Address("Shanghai","Asia","localhost",10014));
 			put("Brussels", new Address("Brussels","Europe","localhost",10016));
 			put("Lisbon", new Address("Lisbon","Europe","localhost",10018));
@@ -127,8 +128,21 @@ public class Exchange{
 		}
 	};
 	
+	class PhysicalTimer extends TimerTask{
+		public void run() {
+			synchronized (physicalTime) {
+				physicalTime++;
+				System.out.println(physicalTime);
+				if (physicalTime == TIME_INTERVAL){
+					physicalTime = 0;
+					exchangeTimeTick();
+				}
+			}
+		}
+	}
 	
-	class ExchangeTimer extends TimerTask{
+	
+	class ExchangeTimer extends Thread{
 		@Override
 		public void run() {
 			synchronized (dnsTable) {
@@ -137,9 +151,16 @@ public class Exchange{
 						dnsTable.remove(entry);
 				}
 			}
-			
+			synchronized (exchangeTime) {
+				exchangeTime++;
+			}
 			timer_tick();
 		}
+	}
+	
+	void exchangeTimeTick(){
+		ExchangeTimer exchangeTimeTick = new ExchangeTimer();
+		exchangeTimeTick.start();
 	}
 	
 	
@@ -186,7 +207,6 @@ public class Exchange{
 		if (isSuper)
 		{
 			becomeSuperpeer();
-			registered = true;
 			superpeer.innerExchanges.put(address.name, address);
 			superpeer.run();
 		}
@@ -220,9 +240,11 @@ public class Exchange{
 			
 			registered = false;
 			
-			while(!registered && superPeerAddress != null)
+			System.out.println("???");
+//			while(!registered && superPeerAddress != null)
 			{
 				registered = client.sendRegister();
+				
 			}
 
 			
@@ -329,7 +351,7 @@ public class Exchange{
 		Address result = null;
 		while(result == null){
 			int num = addressPool.size();
-			int count = 0;
+			int count = 1;
 			Random random = new Random();
 			
 			int proposal = random.nextInt(num);
@@ -495,11 +517,10 @@ public class Exchange{
 			synchronized (price) {
 				synchronized (write_quantity) {
 					synchronized (table_quantity) {
-						System.err.println("timer = " + exchangeTime);
+//						System.err.println("timer = " + exchangeTime);
 						//update table_quantity at timer = t
-						my_db.updateQty(-1, write_quantity, exchangeTime, true);
+						my_db.updateQty(-1, write_quantity, exchangeTime-1, true);
 						
-						exchangeTime++;
 						//query quantities at timer = t
 						QueryQty();
 						
