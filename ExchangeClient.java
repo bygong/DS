@@ -134,6 +134,62 @@ public class ExchangeClient {
 		
 	}
 	
+	boolean sendProposal(Address dest, int proposal){
+		try (Channel channel = new Channel(dest);){
+			System.out.println("Sending proposal " + proposal + " to " + dest.name);
+			channel.output.println("Proposal|"+proposal);
+			channel.socket.setSoTimeout(TIMEOUT);
+			String response = channel.input.readLine();
+			System.out.println(response);
+			String[] contents = response.split("\\|");
+			if (contents[1].equals("Accept"))
+			{
+				return true;
+			}
+			else{
+				return false;
+			}
+		}catch (TimeoutException e) {
+			System.out.println(dest.name + " not responding.");
+			return false;
+		}
+		catch (Exception e) {
+			System.out.println("sending route error");
+			return false;
+		}
+	}
+	
+	void sendCommit(Address dest, String name){
+		try (Channel channel = new Channel(dest);){
+			System.out.println("Sending commit to " + dest.name);
+			channel.output.println("ProposalCommit|"+name);
+		}
+		catch (Exception e) {
+			System.out.println("sending route error");
+		}
+	}
+	
+	void sendOffline(){
+		try(
+				Channel channel = new Channel(exchange.superPeerAddress);
+				){
+			channel.output.println("ExchangeOffline|"+exchange.address.name);
+		}catch (Exception e) {
+			System.out.println("Offline error");
+		}
+		
+	}
+	
+	void sendLogoff(){
+		try(
+				Channel channel = new Channel(exchange.housekeeperAddress);
+			){
+				channel.output.println("ExchangeLogoff|" + exchange.address.name);
+			}catch (Exception e) {
+				System.out.println("Logging off error");
+			}
+	}
+	
 	//------------------passive service-------------------------
 	void sendBuySuccess(Socket s, String userName, String stockName, double price){
 		try (PrintWriter out = new PrintWriter(s.getOutputStream());){
@@ -215,25 +271,22 @@ public class ExchangeClient {
 		}
 	}
 	
-	void sendOffline(){
-		try(
-				Channel channel = new Channel(exchange.superPeerAddress);
-				){
-			channel.output.println("ExchangeOffline|"+exchange.address.name);
+	
+	
+	void sendProposalAccept(Socket socket){
+		try (PrintWriter out = new PrintWriter(socket.getOutputStream());){
+			out.println("Proposal|Accept");
 		}catch (Exception e) {
-			System.out.println("Offline error");
+			e.printStackTrace();
 		}
-		
 	}
 	
-	void sendLogoff(){
-		try(
-				Channel channel = new Channel(exchange.housekeeperAddress);
-			){
-				channel.output.println("ExchangeLogoff|" + exchange.address.name);
-			}catch (Exception e) {
-				System.out.println("Logging off error");
-			}
+	void sendProposalReject(Socket socket){
+		try (PrintWriter out = new PrintWriter(socket.getOutputStream());){
+			out.println("Proposal|Reject");
+		}catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 	
 	

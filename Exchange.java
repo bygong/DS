@@ -9,6 +9,7 @@ import java.sql.SQLNonTransientConnectionException;
 import java.sql.Time;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -304,6 +305,9 @@ public class Exchange{
 	void becomeSuperpeer(){
 		System.out.println("Becoming superpeer...");
 		superpeer = new Superpeer(burnedInSuperpeerAddresses.get(address.name),this);
+		for (String name : addressPool.keySet()){
+			superpeer.addInnerExchange(name, addressPool.get(name));
+		}
 		boolean success = superpeer.updateInfo();
 		if (success)
 		{
@@ -315,6 +319,33 @@ public class Exchange{
 			System.out.println("Superpeer already exists, stop becoming superpeer..");
 			superpeer = null;
 		}
+	}
+	
+	void holdElection(){
+		Address result = null;
+		while(result == null){
+			int num = addressPool.size();
+			int count = 0;
+			Random random = new Random();
+			
+			int proposal = random.nextInt(num-1);
+			
+			for (String name : addressPool.keySet()){
+				if (name != address.name)
+				{
+					count += client.sendProposal(addressPool.get(name),proposal)? 1 : 0;
+				}
+			}
+			if (count > num / 2){
+				ArrayList<Address> samples = new ArrayList<>(addressPool.values());
+				result = samples.get(proposal);
+			}
+		}
+		
+		for (String name : addressPool.keySet()){
+			client.sendCommit(addressPool.get(name), result.name);
+		}
+		
 	}
 	
 	

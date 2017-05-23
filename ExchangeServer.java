@@ -3,6 +3,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Random;
 
 
 public class ExchangeServer extends Thread{
@@ -82,6 +83,12 @@ class Service extends Thread{
 				break;
 			case "Election":
 				electionRequestHandler();
+				break;
+			case "Proposal":
+				proposalHandler(Integer.parseInt(commands[1]));
+				break;
+			case "ProposalCommit":
+				proposalCommitHandler(commands[1]);
 				break;
 			default:
 				break;
@@ -232,4 +239,25 @@ class Service extends Thread{
 		exchange.holdElection();
 	}
 	
+	void proposalHandler(int proposal){
+		int num = exchange.addressPool.size();
+		int count = 0;
+		Random random = new Random();
+		
+		int ref = random.nextInt(num-1);
+		
+		if (ref > proposal)
+			client.sendProposalAccept(socket);
+		else
+			client.sendProposalReject(socket);
+	}
+	
+	void proposalCommitHandler(String name){
+		if (name.equals(exchange.address.name))
+		{
+			exchange.becomeSuperpeer();
+		}
+		else
+			exchange.superPeerAddress = exchange.addressPool.get(name);
+	}
 }
