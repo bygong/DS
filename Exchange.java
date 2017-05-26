@@ -16,27 +16,35 @@ import java.util.TimerTask;
 import org.jgroups.JChannel;
 
 public class Exchange{
-
-	public static Address address;
+	
+	//time setting
+	public static final int TIMEOUT = 100000, TIME_INTERVAL = 120, DNS_TIMEOUT = 2;
+	
+	//functional object reference
 	static ExchangeClient client;
 	static ExchangeServer server;
-	static Superpeer superpeer;
-	static boolean clientInitiated = false, registered = false, systemInitiated = false;
+	static Superpeer superpeer;			//superpeer reference
+	static Timer timer = new Timer();
+	PhysicalTimer timerTask = new PhysicalTimer();
+	
+	//local field, flag, time
+	static boolean registered = false, systemInitiated = false;
 	static Integer exchangeTime = 1;
 	static Integer physicalTime = 0;
+	public static Address address;		//host address
+	static Address housekeeperAddress = new Address("Housekeeper", null, "localhost", 8080);
+	static Address superPeerAddress;
 	
+	//database
 	public DataBase_Connection my_db;			//database of the exchange
 	private ArrayList<Float> price;				//price of every stock in the exchange per timer(from table)
 	private ArrayList<Integer> table_quantity;	//quantity of every stock in the exchange per timer(from table)
 	private ArrayList<Integer> write_quantity;	//quantity written to tmp_quantity table
-	static Timer timer = new Timer();
 	
-	PhysicalTimer timerTask = new PhysicalTimer();
 	
-	public static final int TIMEOUT = 100000, TIME_INTERVAL = 100, DNS_TIMEOUT = 5;
 	
-	static Address housekeeperAddress = new Address("Housekeeper", null, "localhost", 8080);
-	static Address superPeerAddress;
+	
+	
 	
 	//address cache pool
 	protected static HashMap<String, Address> addressPool = new HashMap<String, Address>();
@@ -132,7 +140,6 @@ public class Exchange{
 		public void run() {
 			synchronized (physicalTime) {
 				physicalTime++;
-				System.out.println(physicalTime);
 				if (physicalTime == TIME_INTERVAL){
 					physicalTime = 0;
 					exchangeTimeTick();
@@ -191,7 +198,7 @@ public class Exchange{
 		my_db = new DataBase_Connection(name);
 		write_quantity = new ArrayList<>();
 		//initialize write_quantity
-		QueryQty();
+		table_quantity = my_db.from_tmpQty();
 		QueryPrice();
 //		System.err.println(table_quantity.size());
 		for (int i=0; i<table_quantity.size(); i++)
@@ -199,7 +206,7 @@ public class Exchange{
 		
 //		System.err.println(write_quantity.size());
 		//update to tmp_quantity table
-		my_db.to_tmpQty(-1, write_quantity, true);
+//		my_db.to_tmpQty(-1, write_quantity, true);
 		
 		System.out.println("DB ready.");
 		
@@ -207,8 +214,6 @@ public class Exchange{
 		if (isSuper)
 		{
 			becomeSuperpeer();
-			superpeer.innerExchanges.put(address.name, address);
-			superpeer.run();
 		}
 		
 		addressPool.put(address.name, address);
@@ -328,7 +333,7 @@ public class Exchange{
 		return superpeer != null;
 	}
 	
-	void becomeSuperpeer(){
+	boolean becomeSuperpeer(){
 		System.out.println("Becoming superpeer...");
 		superpeer = new Superpeer(burnedInSuperpeerAddresses.get(address.name),this);
 		for (String name : addressPool.keySet()){
@@ -339,12 +344,15 @@ public class Exchange{
 		{
 			System.out.println("Became superpeer.");
 			superPeerAddress = null;
+			superpeer.innerExchanges.put(address.name, address);
+			superpeer.run();
 		}
 		else
 		{
 			System.out.println("Superpeer already exists, stop becoming superpeer..");
 			superpeer = null;
 		}
+		return success;
 	}
 	
 	void holdElection(){

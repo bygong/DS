@@ -16,7 +16,9 @@ public class ExchangeClient {
 	}
 	
 	boolean sendRegister(){
+		System.out.println(exchange.superPeerAddress.name + " " + exchange.superPeerAddress.port);
 		try (Channel channel = new Channel(exchange.superPeerAddress);){
+			
 			channel.output.println("ExchangeRegistration|"+exchange.address.name +"|" + exchange.address.IP + "|" + exchange.address.port);
 			channel.socket.setSoTimeout(TIMEOUT);
 			String response = channel.input.readLine();
@@ -54,6 +56,27 @@ public class ExchangeClient {
 				String superpeerName = contents[1], superpeerIP = contents[2];
 				int superpeerPort = Integer.parseInt(contents[3]);
 				exchange.superPeerAddress = new Address(superpeerName, exchange.address.continent, superpeerIP, superpeerPort);
+				
+				if (contents.length == 5)
+				{
+					int timeStamp = Integer.parseInt(contents[4]);
+					System.out.println("Time synchronized: " +timeStamp);
+					synchronized (exchange.physicalTime) {
+						exchange.physicalTime = 0;
+					}
+					
+					if (!exchange.systemInitiated){
+						exchange.systemInitiated = true;
+						exchange.timer.scheduleAtFixedRate(exchange.timerTask, 0, 1000);
+					}
+					
+					synchronized (exchange.exchangeTime) {
+						if (timeStamp > exchange.exchangeTime){
+							exchange.exchangeTime = timeStamp;
+							exchange.exchangeTimeTick();
+						}
+					}
+				}
 				return true;
 			}
 			else{
@@ -128,6 +151,7 @@ public class ExchangeClient {
 				return null;
 			}
 		}catch (Exception e) {
+			e.printStackTrace();
 			System.out.println("sending route error");
 			return null;
 		}
@@ -184,7 +208,7 @@ public class ExchangeClient {
 		try(
 				Channel channel = new Channel(exchange.housekeeperAddress);
 			){
-				channel.output.println("ExchangeLogoff|" + exchange.address.name);
+				channel.output.println("ExchangeOffline|" + exchange.address.name);
 			}catch (Exception e) {
 				System.out.println("Logging off error");
 			}

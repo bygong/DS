@@ -91,7 +91,7 @@ public class SuperpeerClient {
 			channel.output.println(message);
 			String response = channel.input.readLine();
 			String[] contents = response.split("\\|");
-			if (contents.length > 1 && contents[1].equals("Exists"))
+			if (contents.length > 1 && contents[1].equals("Failure"))
 				return false;
 			int count = 1;
 			while(count < contents.length){

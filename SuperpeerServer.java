@@ -50,6 +50,8 @@ class SuperpeerService extends Thread{
 			String inputString = in.readLine();
 			String[] commands = inputString.split("\\|");
 			command = commands[0];
+			
+			System.out.println(inputString);
 	
 			//if type is ack
 			switch (command) {

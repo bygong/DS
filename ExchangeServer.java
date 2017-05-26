@@ -270,6 +270,6 @@ class Service extends Thread{
 			exchange.becomeSuperpeer();
 		}
 		else
-			exchange.superPeerAddress = exchange.addressPool.get(name);
+			exchange.superPeerAddress = exchange.burnedInSuperpeerAddresses.get(name);
 	}
 }
