@@ -27,13 +27,13 @@ public class Exchange{
 	static Timer timer = new Timer();
 	PhysicalTimer timerTask = new PhysicalTimer();
 	
-	//local field, flag, time
+	//local fields, flag, time, addresses
 	static boolean registered = false, systemInitiated = false;
-	static Integer exchangeTime = 1;
-	static Integer physicalTime = 0;
+	static Integer exchangeTime = 1;	//logical time
+	static Integer physicalTime = 0;	//actual time
 	public static Address address;		//host address
-	static Address housekeeperAddress = new Address("Housekeeper", null, "localhost", 8080);
-	static Address superPeerAddress;
+	static Address housekeeperAddress = new Address("Housekeeper", null, "localhost", 8080);	//hardcoded housekeeper address
+	static Address superPeerAddress;	//superpeer of this continent
 	
 	//database
 	public DataBase_Connection my_db;			//database of the exchange
@@ -41,15 +41,11 @@ public class Exchange{
 	private ArrayList<Integer> table_quantity;	//quantity of every stock in the exchange per timer(from table)
 	private ArrayList<Integer> write_quantity;	//quantity written to tmp_quantity table
 	
+
 	
-	
-	
-	
-	
-	//address cache pool
-	protected static HashMap<String, Address> addressPool = new HashMap<String, Address>();
-	protected static HashMap<String, Integer> stockShelf;
-	protected static HashMap<String, DNSEntry> dnsTable = new HashMap<>();
+	//address pools
+	protected static HashMap<String, Address> addressPool = new HashMap<String, Address>();		//exchange in current continent
+	protected static HashMap<String, DNSEntry> dnsTable = new HashMap<>();						//dns cache
 	protected static HashMap<String, Address> burnedInExchangeAddresses = new HashMap<String, Address>(){
 		{
 			put("New_York_Stock_Exchange", new Address("New_York_Stock_Exchange","America","localhost",10001));
@@ -70,7 +66,7 @@ public class Exchange{
 			put("Johannesburg", new Address("Johannesburg","Europe","localhost",10031));
 			put("Sao_Paulo", new Address("Sao_Paulo","America","localhost",10033));
 		}
-	};
+	};//fixed exchange addresses to simplify testing
 	
 	protected static HashMap<String, Address> burnedInSuperpeerAddresses = new HashMap<String, Address>(){
 		{
@@ -92,7 +88,7 @@ public class Exchange{
 			put("Johannesburg", new Address("Johannesburg","Europe","localhost",10032));
 			put("Sao_Paulo", new Address("Sao_Paulo","America","localhost",10034));
 		}
-	};
+	};//fixed superpeer addresses to simplify testing
 	
 	protected static HashMap<String, String> initialSuperpeer = new HashMap<String, String>(){
 		{
@@ -100,7 +96,7 @@ public class Exchange{
 			put("Europe","Lisbon");
 			put("Asia","Seoul");
 		}
-	};
+	};//fixed initial superpeer of each continent
 	
 	protected static HashMap<String, MutualFund> mutualFundList = new HashMap<String, MutualFund>(){
 		{
@@ -134,8 +130,9 @@ public class Exchange{
 				}
 			}));
 		}
-	};
+	};//mutual funds constitution
 	
+	//Timer for actual time
 	class PhysicalTimer extends TimerTask{
 		public void run() {
 			synchronized (physicalTime) {
@@ -148,7 +145,7 @@ public class Exchange{
 		}
 	}
 	
-	
+	//Timer for logical timer
 	class ExchangeTimer extends Thread{
 		@Override
 		public void run() {
@@ -165,6 +162,7 @@ public class Exchange{
 		}
 	}
 	
+	// logical timer as thread
 	void exchangeTimeTick(){
 		ExchangeTimer exchangeTimeTick = new ExchangeTimer();
 		exchangeTimeTick.start();
@@ -174,18 +172,17 @@ public class Exchange{
 	
 	public static void main(String[] args) {
 		//------------------validate input---------------
-				if (args.length != 1)
-				{
-					System.out.println("Please input exactly 1 arguments.");
-					return;
-				}
-				
-				if (!burnedInExchangeAddresses.containsKey(args[0]))
-				{
-					System.out.println("Exchange doesn't exist!");
-					return;
-				}
-				
+		if (args.length != 1)
+		{
+			System.out.println("Please input exactly 1 arguments.");
+			return;
+		}
+		
+		if (!burnedInExchangeAddresses.containsKey(args[0]))
+		{
+			System.out.println("Exchange doesn't exist!");
+			return;
+		}	
 		//-------------------------------------------------
 		
 		//start the exchange
@@ -194,32 +191,30 @@ public class Exchange{
 	}
 	
 	//constructor, specifying its super peer
-	public Exchange(String name, boolean isSuper) {
+	//data initializing
+	public Exchange(String name, boolean isDefaultSuper) {
 		my_db = new DataBase_Connection(name);
 		write_quantity = new ArrayList<>();
+		
 		//initialize write_quantity
 		table_quantity = my_db.from_tmpQty();
 		QueryPrice();
-//		System.err.println(table_quantity.size());
 		for (int i=0; i<table_quantity.size(); i++)
 			write_quantity.add(table_quantity.get(i));
 		
-//		System.err.println(write_quantity.size());
-		//update to tmp_quantity table
-//		my_db.to_tmpQty(-1, write_quantity, true);
-		
 		System.out.println("DB ready.");
 		
+		//initiating  superpeer
 		address = burnedInExchangeAddresses.get(name);
-		if (isSuper)
-		{
+		if (isDefaultSuper)
 			becomeSuperpeer();
-		}
 		
+		// put itself in the address pool
 		addressPool.put(address.name, address);
+		
+		//kick off functional parts
 		server = new ExchangeServer(this);
 		client = new ExchangeClient(this);
-		
 		server.clientDelegate = client;
 		client.serverDelegate = server;
 		server.start();
@@ -231,28 +226,9 @@ public class Exchange{
 		try (
 				BufferedReader userIn = new BufferedReader(new InputStreamReader(System.in));
 				){
-			
-			//create server and client side of this peer
-			//server runs as thread while main thread listening on user input
-			
-			
-			
-			
-			while(!registered)
-			{
+				// register to both housekeeper and superpeer
 				registered = client.sendHousekeeperRegister();
-			}
-			
-			registered = false;
-			
-			System.out.println("???");
-//			while(!registered && superPeerAddress != null)
-			{
-				registered = client.sendRegister();
-				
-			}
-
-			
+				registered = client.sendRegister();			
 
 		}catch (Exception e) {
 			System.out.println(e.toString());
@@ -273,13 +249,7 @@ public class Exchange{
         }});
 	}
 	
-	public boolean hasStock(String stockName) {
-		return stockShelf.containsKey(stockName);
-	}
-	
-	
-	
-	//add a dns entry to my pool
+	//add a new exchange in address pool
 	public void addAddress(String s, Address a){
 		System.out.println("Adding " + s + ".");
 		synchronized (addressPool) {
@@ -287,6 +257,7 @@ public class Exchange{
 		}
 	}
 	
+	//remove exchange in address pool
 	public void removeAddress(String s){
 		System.out.println("Removing " + s + ".");
 		synchronized (addressPool) {
@@ -294,24 +265,31 @@ public class Exchange{
 		}
 	}
 	
+	// find the exchange of a stockname
 	Address routing(String stockName){
 		Address dest;
 		
+		//if it can be found in DNS cache
 		if (dnsTable.containsKey(stockName))
 		{
 			System.out.println("DNS cache of \"" + stockName +"\" found: " + dnsTable.get(stockName).address.name);
 			return dnsTable.get(stockName).address;
 		}
+		
+		//if I'm superpeer, route it directly
 		if (superpeer!=null){
 			dest = superpeer.routeTo(stockName);
 		}
+		//else send the superpeer a routing request
 		else{
 			dest = client.sendRoute(superPeerAddress,stockName);
 		}
+		
+		//if found, add it to dns cache
 		if (dest != null){
 			addDNSEntry(stockName, dest);
 		}
-		if(dest != null) 	System.out.println(dest.name);
+//		if(dest != null) 	System.out.println(dest.name);
 		return dest;
 	};
 	
