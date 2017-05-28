@@ -237,11 +237,16 @@ public class Exchange{
 		// Trap exit
         Runtime.getRuntime().addShutdownHook(new Thread() {public void run(){
           
+        	//remove itself
         	addressPool.remove(address.name);
+        	
+        	//tell housekeeper it's going offline
         	client.sendLogoff();
         	
+        	//if not superpeer, tell superpeer
         	if (superpeer == null)
         		client.sendOffline();
+        	//else, superpeer also offline
         	else {
         		superpeer.removeInnerExchange(address.name);
         		superpeer.offline();
@@ -311,12 +316,17 @@ public class Exchange{
 		return superpeer != null;
 	}
 	
+	//make itself superpeer
 	boolean becomeSuperpeer(){
 		System.out.println("Becoming superpeer...");
 		superpeer = new Superpeer(burnedInSuperpeerAddresses.get(address.name),this);
+		
+		//get to know all its nodes
 		for (String name : addressPool.keySet()){
 			superpeer.addInnerExchange(name, addressPool.get(name));
 		}
+		
+		//get superpeer info from housekeeper
 		boolean success = superpeer.updateInfo();
 		if (success)
 		{
@@ -333,27 +343,35 @@ public class Exchange{
 		return success;
 	}
 	
+	//this exchange hold an election
 	void holdElection(){
 		Address result = null;
+		
+		//keep electing until a proposal committed
 		while(result == null){
+			// choose an exchange randomly as proposal
 			int num = addressPool.size();
 			int count = 1;
 			Random random = new Random();
 			
 			int proposal = random.nextInt(num);
 			
+			// send proposal, collect returns
 			for (String name : addressPool.keySet()){
 				if (name != address.name)
 				{
 					count += client.sendProposal(addressPool.get(name),proposal)? 1 : 0;
 				}
 			}
+			
+			//if majority, commit
 			if (count > num / 2){
 				ArrayList<Address> samples = new ArrayList<>(addressPool.values());
 				result = samples.get(proposal);
 			}
 		}
 		
+		//commit to other exchanges
 		for (String name : addressPool.keySet()){
 			client.sendCommit(addressPool.get(name), result.name);
 		}

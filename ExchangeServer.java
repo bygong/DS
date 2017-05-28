@@ -24,7 +24,7 @@ public class ExchangeServer extends Thread{
 				new Service(receivingSocket,clientDelegate,this).start();
 			}
 		}catch (Exception e) {
-			// TODO: handle exception
+			e.printStackTrace();
 		}
 	}
 	
@@ -50,12 +50,11 @@ class Service extends Thread{
 				BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 				){
 			
+			//parsing incomming command
 			String inputString = in.readLine();
 			String[] commands = inputString.split("\\|");
 			command = commands[0];
 			
-			System.out.println(inputString);
-
 			switch (command) {
 			case "BUY":
 				buyHandler(commands[1],commands[2],Integer.parseInt(commands[3]));
@@ -64,7 +63,6 @@ class Service extends Thread{
 				sellHandler(commands[1],commands[2],Integer.parseInt(commands[3]));
 				break;
 			case "ExchangeBuy":
-				System.out.println(inputString);
 				exchangeBuyhandler(commands[1],commands[2],Integer.parseInt(commands[3]));
 				break;
 			case "ExchangeSell":
@@ -101,6 +99,7 @@ class Service extends Thread{
 	
 	//handle user buy request
 	void buyHandler(String userName, String stockName, int shares){
+		// if it's mutual fund
 		if (exchange.mutualFundList.containsKey(stockName)){
 			double price = exchange.buyMutualFund(stockName, shares);
 			if (price >= 0)
@@ -112,6 +111,8 @@ class Service extends Thread{
 			}
 			return;
 		}
+		
+		//find (also check existing) stock info
 		int id = exchange.my_db.QueryStockID((stockName));
 		double price;
 		//if stock belongs to this exchange
@@ -180,6 +181,7 @@ class Service extends Thread{
 		}
 	}
 	
+	// buy request from other exchange
 	void exchangeBuyhandler(String exchangeName, String stockName, int shares){
 		int id = exchange.my_db.QueryStockID((stockName));
 		double price;
@@ -194,6 +196,7 @@ class Service extends Thread{
 				client.sendExchangeBuyFailure(socket,exchangeName,stockName,"Stock not found");
 	}
 	
+	//sell order from other exchange
 	void exchangeSellhandler(String exchangeName, String stockName, int shares){
 		int id = exchange.my_db.QueryStockID((stockName));
 		double price;
@@ -208,6 +211,7 @@ class Service extends Thread{
 				client.sendExchangeSellFailure(socket,exchangeName,stockName,"Stock not found");
 	}
 	
+	// find stock command from superpeer
 	void findStockHandler(String stockName){
 		if (exchange.my_db.QueryStockID((stockName)) != -1 ){
 			client.sendFindSuccess(socket,stockName);
@@ -216,12 +220,15 @@ class Service extends Thread{
 		}
 	}
 	
+	//time sync command from housekeeper
 	void timeSyncHandler(int timeStamp){
 		System.out.println("Time synchronized: " +timeStamp);
+		//reset physical timer
 		synchronized (exchange.physicalTime) {
 			exchange.physicalTime = 0;
 		}
 		
+		// first initiating
 		if (!exchange.systemInitiated){
 			exchange.systemInitiated = true;
 			exchange.timer.scheduleAtFixedRate(exchange.timerTask, 0, 1000);
@@ -231,39 +238,48 @@ class Service extends Thread{
 		synchronized (exchange.exchangeTime) {
 			if (timeStamp <= exchange.exchangeTime)
 				return;
+			// if central time greater than local time, update all info
 			exchange.exchangeTime = timeStamp;
 			exchange.exchangeTimeTick();	
 		}
 	}
 	
+	// incoming new exchange
 	void newExchangeHandler(String name, String IP, int port){
 		Address newExchange = new Address(name, exchange.address.continent, IP, port);
 		exchange.addAddress(name, newExchange);
 	}
 	
+	//other exchange down
 	void exchangeDownHandler(String name){
 		exchange.removeAddress(name);
 	}
 	
+	//been asked to hold election
 	void electionRequestHandler(){
-		System.out.println("Asked to hold election");
+		System.out.println("Been asked to hold election");
+		// ACK to election request
 		client.replyElectionRequest(socket);
 		exchange.holdElection();
 	}
 	
+	//receive a proposal
 	void proposalHandler(int proposal){
+		//generate random number
 		int num = exchange.addressPool.size();
 		int count = 0;
 		Random random = new Random();
 		
 		int ref = random.nextInt(num);
 		
+		//if greater than proposal, reject otherwise accept
 		if (ref > proposal)
 			client.sendProposalReject(socket);
 		else
 			client.sendProposalAccept(socket);
 	}
 	
+	//told a proposal is committed
 	void proposalCommitHandler(String name){
 		if (name.equals(exchange.address.name))
 		{

@@ -14,14 +14,7 @@ public class SuperpeerClient {
 	public SuperpeerClient(Superpeer superpeer) {
 		this.superpeer = superpeer;
 	}
-	
-//	boolean sendRegister(){
-//		if (connectTo(s.housekeeperAddress) == null){
-//			return false;
-//		}
-//		return true;
-//	}
-	
+
 //------------------------initiative service---------------------------
 	Address sendRoute(Address dest, String stockName){
 		System.out.println("Routing to " + dest.name + " for " + stockName);
@@ -33,7 +26,6 @@ public class SuperpeerClient {
 			
 			channel.socket.setSoTimeout(TIMEOUT);
 			String response = channel.input.readLine();
-			System.out.println(response);
 			String[] contents = response.split("\\|");
 			if (contents[1].equals("Success")){
 				System.out.println("Found " + stockName + " at " + dest.name);
@@ -54,7 +46,6 @@ public class SuperpeerClient {
 			channel.output.println("RemoteFind|"+stockName);
 			channel.socket.setSoTimeout(TIMEOUT);
 			String response = channel.input.readLine();
-			System.out.println(response);
 			String[] contents = response.split("\\|");
 			if (contents[1].equals("Success")){
 				Address result = new Address(contents[3], contents[2], contents[4], Integer.parseInt(contents[5]));
@@ -80,13 +71,12 @@ public class SuperpeerClient {
 			e.printStackTrace();
 		}
 	}
-	
+	//register to housekeeper
 	boolean sendSuperpeerRegistration(){
 		try (
 				Channel channel = new Channel(superpeer.houseKeeperAddress);
 				){
 			String message = "SuperpeerRegistration|" + superpeer.address.continent + "|" + superpeer.address.name + "|"+superpeer.address.IP+"|"+superpeer.address.port;
-			System.out.println(message);
 			channel.socket.setSoTimeout(TIMEOUT);
 			channel.output.println(message);
 			String response = channel.input.readLine();
@@ -94,6 +84,8 @@ public class SuperpeerClient {
 			if (contents.length > 1 && contents[1].equals("Failure"))
 				return false;
 			int count = 1;
+			
+			//receiving other superpeers information
 			while(count < contents.length){
 				Address superPeer = new Address(contents[count], contents[count+1], contents[count+2], Integer.parseInt(contents[count+3]));
 				superpeer.superPeers.put(superPeer.continent, superPeer);
@@ -110,6 +102,7 @@ public class SuperpeerClient {
 		
 	}
 	
+	//ask dest to hold election
 	boolean sendAskElection(Address dest){
 		System.out.println("Asking " + dest.name + " to hold a electioin");
 		try(
@@ -128,6 +121,7 @@ public class SuperpeerClient {
 			}
 	}
 	
+	// superpeer logging off
 	void sendSuperpeerOffline(){
 		System.out.println("Superpeer " + superpeer.address.name + " logging off.");
 		try(Channel channel = new Channel(superpeer.houseKeeperAddress);){

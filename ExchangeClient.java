@@ -15,18 +15,18 @@ public class ExchangeClient {
 		this.exchange = exchange;
 	}
 	
+	// register to superpeer
 	boolean sendRegister(){
-		System.out.println(exchange.superPeerAddress.name + " " + exchange.superPeerAddress.port);
 		try (Channel channel = new Channel(exchange.superPeerAddress);){
 			
 			channel.output.println("ExchangeRegistration|"+exchange.address.name +"|" + exchange.address.IP + "|" + exchange.address.port);
 			channel.socket.setSoTimeout(TIMEOUT);
 			String response = channel.input.readLine();
-			System.out.println(response);
 			String[] contents = response.split("\\|");
 			if (contents[0].equals("ExchangeRegistrationResponse"))
 			{
 				int count = 1;
+				// receiving other exchange in this continent
 				while(count < contents.length){
 					Address otherExchange = new Address(contents[count], exchange.address.continent, contents[count+1], Integer.parseInt(contents[count+2]));
 					exchange.addAddress(otherExchange.name, otherExchange);
@@ -44,19 +44,23 @@ public class ExchangeClient {
 		}
 	}
 	
+	// register to housekeeper
 	boolean sendHousekeeperRegister(){
 		try (Channel channel = new Channel(exchange.housekeeperAddress);){
 			channel.output.println("ExchangeRegistration|"+exchange.address.name +"|" +exchange.address.continent + "|" + exchange.address.IP + "|" + exchange.address.port);
 			channel.socket.setSoTimeout(TIMEOUT);
 			String response = channel.input.readLine();
-			System.out.println(response);
 			String[] contents = response.split("\\|");
 			if (contents[0].equals("ExchangeRegistrationResponse"))
 			{
 				String superpeerName = contents[1], superpeerIP = contents[2];
 				int superpeerPort = Integer.parseInt(contents[3]);
+				
+				//being told the current superpeer
 				exchange.superPeerAddress = new Address(superpeerName, exchange.address.continent, superpeerIP, superpeerPort);
 				
+				// contents length == 5 indicates that system is already running upon this exchange coming online
+				// so housekeeper will tell it the current time stamp
 				if (contents.length == 5)
 				{
 					int timeStamp = Integer.parseInt(contents[4]);
@@ -89,13 +93,12 @@ public class ExchangeClient {
 	}
 	
 	//returns a status code
-	//0: success, 1: no inventory, 2: remote exchange not online, 3: stock not exist
+	//non-negative: price, -1: failure
 	double sendRemoteBuy(Address dest, String stockName, int shares){
 		try (Channel channel = new Channel(dest);){
 			channel.output.println("ExchangeBuy|"+exchange.address.name+"|"+stockName+"|"+shares);
 			channel.socket.setSoTimeout(TIMEOUT);
 			String response = channel.input.readLine();
-			System.out.println(response);
 			String[] contents = response.split("\\|");
 			if (contents[1].equals("Success"))
 			{
@@ -112,8 +115,6 @@ public class ExchangeClient {
 		}
 	}
 	
-	//returns a status code
-	//0: success, 1: no inventory, 2: remote exchange not online, 3: stock not exist
 	double sendRemoteSell(Address dest, String stockName, int shares){
 		try (Channel channel = new Channel(dest);){
 			channel.output.println("ExchangeSell|"+exchange.address.name+"|"+stockName+"|"+shares);
@@ -134,13 +135,13 @@ public class ExchangeClient {
 		}
 	}
 	
+	//sending superpeer routing request
 	Address sendRoute(Address superPeerAddress, String stockName){
 		try (Channel channel = new Channel(superPeerAddress);){
 			System.out.println("Sending routing of " +stockName);
 			channel.output.println("Find|"+stockName);
 			channel.socket.setSoTimeout(TIMEOUT);
 			String response = channel.input.readLine();
-			System.out.println(response);
 			String[] contents = response.split("\\|");
 			if (contents[1].equals("Success"))
 			{
@@ -164,7 +165,6 @@ public class ExchangeClient {
 			channel.output.println("Proposal|"+proposal);
 			channel.socket.setSoTimeout(TIMEOUT);
 			String response = channel.input.readLine();
-			System.out.println(response);
 			String[] contents = response.split("\\|");
 			if (contents[1].equals("Accept"))
 			{

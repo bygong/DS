@@ -46,14 +46,11 @@ class SuperpeerService extends Thread{
 		try(
 				BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 				){
-			//extract type information
+			//parsing command
 			String inputString = in.readLine();
 			String[] commands = inputString.split("\\|");
 			command = commands[0];
-			
-			System.out.println(inputString);
-	
-			//if type is ack
+
 			switch (command) {
 				case "Find":
 					findHandler(commands[1]);
@@ -79,6 +76,7 @@ class SuperpeerService extends Thread{
 		}
 	}
 	
+	// receiving route from inner continent, searching both inner & outside
 	void findHandler(String stockName){
 		Address address = superpeer.routeTo(stockName);
 		if (address != null){
@@ -90,6 +88,7 @@ class SuperpeerService extends Thread{
 		}
 	}
 	
+	// receiving from outside, only searching inside
 	void remoteFindHandler(String stockName){
 		Address address = superpeer.routeInner(stockName);
 		if (address != null){
@@ -112,7 +111,7 @@ class SuperpeerService extends Thread{
 	}
 	
 	void exchangeOfflineHandler(String name){
-		System.out.println(name + " offline.");
+		System.out.println(name + " is now offline.");
 		superpeer.exchangeDelegate.removeAddress(name);
 		superpeer.removeInnerExchange(name);
 		for (String innerExchange : superpeer.innerExchanges.keySet()){
