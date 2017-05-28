@@ -281,6 +281,7 @@ class Service extends Thread{
 	
 	//told a proposal is committed
 	void proposalCommitHandler(String name){
+		System.out.println(name + " is new superpeer now");
 		if (name.equals(exchange.address.name))
 		{
 			exchange.becomeSuperpeer();

@@ -20,9 +20,8 @@ public class DataBase_Connection {
 	private String Stock_qty;								//stock qty look-up table
 	private String Stock_qty_log;							//log qty of trading
 	private String tmp_qty;									//temporary table to save qty
-//	private int stock_id = -1;								//stock id in exchange_name table
 	
-	
+	//constructor
 	public DataBase_Connection(String exchange_name) {
 		Stock_name = exchange_name + "_name";
 		Stock_price = exchange_name + "_price";
@@ -30,10 +29,6 @@ public class DataBase_Connection {
 		Stock_qty_log = Stock_qty + "_log";
 		tmp_qty = Stock_qty + "_record";
 	}
-	
-//	public int getStockId() {
-//		return stock_id;
-//	}
 	
 	//Return continent where the exchange is located in
 	//If continent is not found, return null
@@ -56,9 +51,6 @@ public class DataBase_Connection {
 			while (rs.next()) {
 				//Retrieve by column name
 				continent = rs.getString("continent");
-				
-				//Display
-				System.out.println("Exchange is in " + continent);
 			}
 			
 			//Clean-up
@@ -73,6 +65,7 @@ public class DataBase_Connection {
 		return continent;
 	}
 	
+	//Query stock id in the exchange
 	//If the stock is in the exchange, return stock_id
 	//If exchange is not found, return -1
 	public int QueryStockID(String stock) {
@@ -94,10 +87,6 @@ public class DataBase_Connection {
 			while (rs.next()) {
 				//Retrieve by column name
 				stock_id = rs.getInt("id");
-				
-				//Display
-				
-				System.out.println("Found " + stock + " id = " + stock_id);
 			}
 			
 			//Clean-up
@@ -134,9 +123,6 @@ public class DataBase_Connection {
 				//Retrieve by column index
 				int index = stock_id + 1;			//timer is the first element
 				price = rs.getFloat(index);
-				
-				//Display
-				System.out.println("Price at timer = " + t + "  is " + price);
 			}
 			
 			//Clean-up
@@ -173,9 +159,6 @@ public class DataBase_Connection {
 				//Retrieve by column index
 				int index = stock_id + 1;			//timer is the first element
 				qty = rs.getInt(index);
-				
-				//Display
-				System.out.println("Quantity at timer = " + t + "  is " + qty);
 			}
 			
 			//Clean-up
@@ -208,7 +191,6 @@ public class DataBase_Connection {
 			ResultSet rs = stmt.executeQuery(sql);
 			
 			//Extract data
-//			System.out.println("Extract data");
 			float price = 0;
 			while (rs.next()) {
 				//Retrieve by column index
@@ -216,18 +198,13 @@ public class DataBase_Connection {
 					try {
 						price = rs.getFloat(index);
 					}catch (Exception e) {
-//						System.err.println("BREAK");
 						break;
 					}
 					tmp.add(price);
 					index++;
-					
-					//Display
-//					System.out.println(price);
 				}
 			}
-//			System.err.println(index);
-//			System.err.println(tmp.size());
+
 			//Clean-up
 			rs.close();
 			stmt.close();
@@ -265,18 +242,12 @@ public class DataBase_Connection {
 					try {
 						qty = rs.getInt(index);
 					}catch (Exception e) {
-//						System.err.println("BREAK");
 						break;
 					}
 					tmp.add(qty);
 					index++;
-					
-					//Display
-//					System.out.println(qty);
 				}
 			}
-//			System.err.println(index);
-//			System.err.println(tmp.size());
 			
 			//Clean-up
 			rs.close();
@@ -290,34 +261,9 @@ public class DataBase_Connection {
 		return tmp;
 	}
 	
-	//Update quantity at timer = t with stock_id
-//	public boolean updateQty(int stock_id, int qty, int t) {
-//		try {
-//			//Register JDBC driver
-//			Class.forName(Driver);
-//			
-//			//Open a connection
-//			Connection conn = DriverManager.getConnection(DB_URL, user, password);
-//			
-//			//Update
-//			Statement stmt = conn.createStatement();
-//			String sql;
-//			sql = "UPDATE " + Stock_qty + " SET " + "C" + stock_id + "=" + qty + " WHERE timer = " + t;
-//			System.out.println(sql);
-//			stmt.execute(sql);
-//			
-//			//Clean-up
-//			stmt.close();
-//			conn.close();
-//		}catch (Exception e) {
-//			System.err.println(e.getMessage());
-//			e.printStackTrace();
-//			return false;
-//		}
-//		
-//		return true;
-//	}
-	
+	//Update qty of one stock or all of the stock quantities at timer = t to Stock_qty_log table
+	//If update all the stock quantities, set all = true
+	//If success, return true; otherwise, return false
 	public boolean updateQty(int stock_id, ArrayList<Integer> tmp, int t, boolean all) {
 		int size = tmp.size();
 		try {
@@ -337,15 +283,13 @@ public class DataBase_Connection {
 					int id = i +1;		
 					sql = "UPDATE " + Stock_qty_log + " SET " + "C" + id + "=" + tmp.get(i) + " WHERE timer = " + t;
 					System.out.println(sql);
-					stmt.execute(sql);
-//					
+					stmt.execute(sql);				
 				}
 			}
 			
 			//update only one stock
 			else {
 				sql = "UPDATE " + tmp_qty + " SET " + "C" + stock_id + "=" + tmp.get(stock_id -1);
-//				System.out.println(sql);
 				stmt.execute(sql);
 			}
 			
@@ -361,9 +305,9 @@ public class DataBase_Connection {
 		return true;
 	}
 	
-	//update to tmp_qty
-	//if update whole tmp_qty, all = true
-	//if update only single stock, all = false
+	//update to tmp_qty table
+	//if update whole tmp_qty, set all = true
+	//if update only one stock, set all = false
 	public boolean to_tmpQty(int stock_id, ArrayList<Integer> tmp, boolean all) {
 		int size = tmp.size();
 		try {
@@ -382,7 +326,6 @@ public class DataBase_Connection {
 					//stock_id starts from 1
 					int id = i +1;		
 					sql = "UPDATE " + tmp_qty + " SET " + "C" + id + "=" + tmp.get(i);
-//					System.out.println(sql);
 					stmt.execute(sql);
 				}
 			}
@@ -390,7 +333,6 @@ public class DataBase_Connection {
 			//update only one stock
 			else {
 				sql = "UPDATE " + tmp_qty + " SET " + "C" + stock_id + "=" + tmp.get(stock_id -1);
-//				System.out.println(sql);
 				stmt.execute(sql);
 			}
 			
@@ -406,7 +348,7 @@ public class DataBase_Connection {
 		return true;
 	}
 	
-	//extract from tmp_qty
+	//extract all of the stock quantities from tmp_qty
 	//used when first time launch or after exchange recovers from crash
 	public ArrayList<Integer> from_tmpQty() {
 		ArrayList<Integer> tmp = new ArrayList<>();
@@ -432,18 +374,12 @@ public class DataBase_Connection {
 					try {
 						qty = rs.getInt(index);
 					}catch (Exception e) {
-//						System.err.println("BREAK");
 						break;
 					}
 					tmp.add(qty);
 					index++;
-					
-					//Display
-//					System.out.println(qty);
 				}
 			}
-//			System.err.println(index);
-//			System.err.println(tmp.size());
 			
 			//Clean-up
 			rs.close();

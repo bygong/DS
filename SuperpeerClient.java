@@ -62,7 +62,6 @@ public class SuperpeerClient {
 	
 	//register new exchange coming in, notify "dest" exchange
 	void sendNewExchange(Address dest, Address newExchange){
-		System.out.println(dest.IP + dest.port);
 		try(Channel channel = new Channel(dest);){
 			String message = "ExchangeRegistration|" + newExchange.name + "|" + newExchange.IP + "|" + newExchange.port;
 			channel.socket.setSoTimeout(TIMEOUT);
