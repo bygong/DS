@@ -9,6 +9,8 @@ import java.sql.SQLNonTransientConnectionException;
 import java.sql.Time;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -150,11 +152,22 @@ public class Exchange{
 		@Override
 		public void run() {
 			synchronized (dnsTable) {
-				for (String entry : dnsTable.keySet()){
-					if ((dnsTable.get(entry).TTL--) == 0)
-						dnsTable.remove(entry);
+				Iterator<Map.Entry<String, DNSEntry>> it = dnsTable.entrySet().iterator();
+				while(it.hasNext()){
+					Map.Entry<String, DNSEntry> entry = it.next();
+					if ((entry.getValue().TTL--) == 0){
+						it.remove();
+					}
 				}
 			}
+			
+//			
+//			synchronized (dnsTable) {
+//				for (String entry : dnsTable.keySet()){
+//					if ((dnsTable.get(entry).TTL--) == 0)
+//						dnsTable.remove(entry);
+//				}
+//			}
 			synchronized (exchangeTime) {
 				exchangeTime++;
 			}
@@ -383,23 +396,18 @@ public class Exchange{
 		public void QueryPrice() {
 			price = my_db.QueryPriceAll(exchangeTime);
 		}
-		
+			
 		//Query all quantities at exchangeTime = t 
 		public void QueryQty() {
 			table_quantity = my_db.QueryQuantityAll(exchangeTime);
 		}
-		
-//		public void updateQty(int arr_index, int qty) {
-//			int stock_id = arr_index + 1;
-//			my_db.updateQty(stock_id, qty, exchangeTime);
-//		}
-		
-		//buy in local exchange
+			
+		//buy stock in local exchange
 		//if succeed, return buy price; otherwise, return -1
 		public double buy(int stock_id, int share) {
 			synchronized (price) {
 				synchronized (write_quantity) {
-					int index = stock_id - 1;							//may be changed
+					int index = stock_id - 1;					
 					int qty_before = write_quantity.get(index);
 					//no enough shares
 					if (qty_before < share)
@@ -495,15 +503,14 @@ public class Exchange{
 		}
 		//check if the user has so many shares of the stock
 		public boolean enough_share(String user, int share) {
-			//trader's share -> need to be changed further
 			int trader_share = 0;
 			
 			if (trader_share < share)
 				return false;
 			return true;
 		}
-		
-		//sell in local exchange
+			
+		//sell stock in local exchange
 		public double sell(boolean enough_share, int stock_id, int share) {
 			synchronized (write_quantity) {
 				if (!enough_share)
@@ -516,33 +523,33 @@ public class Exchange{
 				return price.get(index);
 			}
 		}
+
 		//exchangeTime ticks
 		public void timer_tick() {
 			synchronized (price) {
 				synchronized (write_quantity) {
 					synchronized (table_quantity) {
-//						System.err.println("timer = " + exchangeTime);
 						//update table_quantity at timer = t
 						my_db.updateQty(-1, write_quantity, exchangeTime-1, true);
 						
 						//query quantities at timer = t
 						QueryQty();
 						
-						//query prices at timer = ts
+						//query prices at timer = t
 						QueryPrice();
-						
+							
 						//update write_quantity
 						for (int i=0; i<write_quantity.size(); i++) {
 							int qty = write_quantity.get(i) + table_quantity.get(i);
 							write_quantity.set(i, qty);
 						}
-						
+							
 						//update qty_record table
 						my_db.to_tmpQty(-1, write_quantity, true);
 					}
-					
+						
 				}
-				
+					
 			}
 		}
 }

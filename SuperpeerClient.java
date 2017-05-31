@@ -35,7 +35,6 @@ public class SuperpeerClient {
 				return null;
 			}
 		}catch (Exception e) {
-			e.printStackTrace();
 			return null;
 		}
 	}
@@ -55,7 +54,6 @@ public class SuperpeerClient {
 				return null;
 			}
 		}catch (Exception e) {
-			e.printStackTrace();
 			return null;
 		}
 	}
@@ -67,7 +65,6 @@ public class SuperpeerClient {
 			channel.socket.setSoTimeout(TIMEOUT);
 			channel.output.println(message);
 		}catch (Exception e) {
-			e.printStackTrace();
 		}
 	}
 	//register to housekeeper
@@ -95,7 +92,6 @@ public class SuperpeerClient {
 			
 		} catch (Exception e) {
 //			System.out.println("Superpeer " + superpeer.address.name + " registration error.");
-			e.printStackTrace();
 			return false;
 		}
 		
@@ -128,7 +124,6 @@ public class SuperpeerClient {
 			channel.socket.setSoTimeout(TIMEOUT);
 			channel.output.println(message);
 		}catch (Exception e) {
-			e.printStackTrace();
 		}
 	}
 	
@@ -138,7 +133,6 @@ public class SuperpeerClient {
 			out.println("Find|Success" + "|" +address.continent+"|"+address.name+"|"+address.IP+"|"+address.port);
 			
 		}catch (Exception e) {
-			e.printStackTrace();
 		}
 	}
 	
@@ -146,7 +140,6 @@ public class SuperpeerClient {
 		try (PrintWriter out = new PrintWriter(s.getOutputStream());){
 			out.println("Find|Failure");
 		}catch (Exception e) {
-			e.printStackTrace();
 		}
 	}
 	
@@ -159,7 +152,6 @@ public class SuperpeerClient {
 			}
 			out.println(response);
 		}catch (Exception e) {
-			e.printStackTrace();
 		}
 	}
 	
@@ -189,7 +181,7 @@ public class SuperpeerClient {
 		try {
 			socket.close();
 		} catch (IOException e) {
-			e.printStackTrace();
+
 		}
 	}
 }

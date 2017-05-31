@@ -24,7 +24,6 @@ public class ExchangeServer extends Thread{
 				new Service(receivingSocket,clientDelegate,this).start();
 			}
 		}catch (Exception e) {
-			e.printStackTrace();
 		}
 	}
 	

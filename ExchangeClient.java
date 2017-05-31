@@ -39,7 +39,6 @@ public class ExchangeClient {
 			}
 		}catch (Exception e) {
 			System.out.println("register to super peer error");
-			e.printStackTrace();
 			return false;
 		}
 	}
@@ -109,7 +108,6 @@ public class ExchangeClient {
 				return -1;
 			
 		}catch (Exception e) {
-			e.printStackTrace();
 			System.out.println("Sending order error!");
 			return -1;
 		}
@@ -129,7 +127,6 @@ public class ExchangeClient {
 			}else
 				return -1;
 		}catch (Exception e) {
-			e.printStackTrace();
 			System.out.println("Sending order error!");
 			return -1;
 		}
@@ -138,7 +135,7 @@ public class ExchangeClient {
 	//sending superpeer routing request
 	Address sendRoute(Address superPeerAddress, String stockName){
 		try (Channel channel = new Channel(superPeerAddress);){
-			System.out.println("Sending routing of " +stockName);
+			System.out.println("Sending routing of " +stockName + " to " + superPeerAddress.name);
 			channel.output.println("Find|"+stockName);
 			channel.socket.setSoTimeout(TIMEOUT);
 			String response = channel.input.readLine();
@@ -152,7 +149,6 @@ public class ExchangeClient {
 				return null;
 			}
 		}catch (Exception e) {
-			e.printStackTrace();
 			System.out.println("sending route error");
 			return null;
 		}
@@ -219,7 +215,6 @@ public class ExchangeClient {
 		try (PrintWriter out = new PrintWriter(s.getOutputStream());){
 			out.println("BuyResponse|Success|"+price);
 		}catch (Exception e) {
-			e.printStackTrace();
 		}
 	}
 	
@@ -227,7 +222,6 @@ public class ExchangeClient {
 		try (PrintWriter out = new PrintWriter(s.getOutputStream());){
 			out.println("BuyResponse|Failure|"+reason);
 		}catch (Exception e) {
-			e.printStackTrace();
 		}
 	}
 	
@@ -235,7 +229,6 @@ public class ExchangeClient {
 		try (PrintWriter out = new PrintWriter(s.getOutputStream());){
 			out.println("SellResponse|Success|"+price);
 		}catch (Exception e) {
-			e.printStackTrace();
 		}
 	}
 	
@@ -243,7 +236,6 @@ public class ExchangeClient {
 		try (PrintWriter out = new PrintWriter(s.getOutputStream());){
 			out.println("SellResponse|Failure|"+reason);
 		}catch (Exception e) {
-			e.printStackTrace();
 		}
 	}
 	
@@ -251,7 +243,6 @@ public class ExchangeClient {
 		try (PrintWriter out = new PrintWriter(s.getOutputStream());){
 			out.println("ExchangeBuyResponse|Success|"+price);
 		}catch (Exception e) {
-			e.printStackTrace();
 		}
 	}
 	
@@ -259,7 +250,6 @@ public class ExchangeClient {
 		try (PrintWriter out = new PrintWriter(s.getOutputStream());){
 			out.println("ExchangeBuyResponse|Failure|"+reason);
 		}catch (Exception e) {
-			e.printStackTrace();
 		}
 	}
 	
@@ -267,7 +257,6 @@ public class ExchangeClient {
 		try (PrintWriter out = new PrintWriter(s.getOutputStream());){
 			out.println("ExchangeSellResponse|Success|"+price);
 		}catch (Exception e) {
-			e.printStackTrace();
 		}
 	}
 	
@@ -275,7 +264,6 @@ public class ExchangeClient {
 		try (PrintWriter out = new PrintWriter(s.getOutputStream());){
 			out.println("ExchangeSellResponse|Failure|"+reason);
 		}catch (Exception e) {
-			e.printStackTrace();
 		}
 	}
 	
@@ -283,7 +271,6 @@ public class ExchangeClient {
 		try (PrintWriter out = new PrintWriter(s.getOutputStream());){
 			out.println("Find|Success");
 		}catch (Exception e) {
-			e.printStackTrace();
 		}
 	}
 	
@@ -291,7 +278,6 @@ public class ExchangeClient {
 		try (PrintWriter out = new PrintWriter(s.getOutputStream());){
 			out.println("Find|Failure");
 		}catch (Exception e) {
-			e.printStackTrace();
 		}
 	}
 	
@@ -301,7 +287,6 @@ public class ExchangeClient {
 		try (PrintWriter out = new PrintWriter(socket.getOutputStream());){
 			out.println("Proposal|Accept");
 		}catch (Exception e) {
-			e.printStackTrace();
 		}
 	}
 	
@@ -309,7 +294,6 @@ public class ExchangeClient {
 		try (PrintWriter out = new PrintWriter(socket.getOutputStream());){
 			out.println("Proposal|Reject");
 		}catch (Exception e) {
-			e.printStackTrace();
 		}
 	}
 	
@@ -317,7 +301,6 @@ public class ExchangeClient {
 		try (PrintWriter out = new PrintWriter(socket.getOutputStream());){
 			out.println("ElectionACK");
 		}catch (Exception e) {
-			e.printStackTrace();
 		}
 	}
 	
@@ -336,7 +319,6 @@ public class ExchangeClient {
 		try {
 			socket.close();
 		} catch (IOException e) {
-			e.printStackTrace();
 		}
 	}
 }

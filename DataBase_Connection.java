@@ -282,7 +282,6 @@ public class DataBase_Connection {
 					//stock_id starts from 1
 					int id = i +1;		
 					sql = "UPDATE " + Stock_qty_log + " SET " + "C" + id + "=" + tmp.get(i) + " WHERE timer = " + t;
-					System.out.println(sql);
 					stmt.execute(sql);				
 				}
 			}
